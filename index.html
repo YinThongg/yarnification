@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Knitting Pattern Tracker — Ribbed Beanie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .stitch-cell {
+      width: 26px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700;
+      border-width: 1px; border-style: solid;
+      user-select: none; flex-shrink: 0;
+      transition: filter 0.08s;
+    }
+    .stitch-cell.editable { cursor: pointer; }
+    .stitch-cell.editable:hover { filter: brightness(0.85); }
+    .row-wrap { display: flex; align-items: center; gap: 2px; padding: 2px 0; cursor: pointer; border-radius: 6px; }
+    .row-wrap:hover { background: #f5f5f4; }
+    .row-wrap.active { background: #fef9c3; }
+    .row-wrap.active .sidebar-cell { background: #fef08a !important; }
+    .sidebar-cell {
+      width: 30px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; flex-shrink: 0;
+      border-radius: 4px;
+    }
+    .dir-arrow {
+      width: 18px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; color: #a8a29e; flex-shrink: 0;
+    }
+    .col-label {
+      width: 26px; height: 18px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 9px; color: #a8a29e; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body class="bg-stone-50 text-stone-800 min-h-screen">
+<div class="max-w-7xl mx-auto px-4 py-6">
+
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+    <div>
+      <h1 class="text-2xl font-bold text-stone-800 tracking-tight">Knitting Pattern Tracker</h1>
+      <p class="text-stone-400 text-sm mt-0.5">Ribbed Beanie &middot; 20 rows &middot; worsted weight</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="text-center">
+        <div class="text-xs text-stone-400 uppercase tracking-wider font-medium mb-0.5">Active Row</div>
+        <div id="currentRowDisplay" class="text-4xl font-bold text-stone-700 leading-none">1</div>
+        <div class="text-xs text-stone-400 mt-1">↑↓ to navigate</div>
+      </div>
+      <button id="sidebarToggleBtn" onclick="toggleSidebar()"
+        class="px-4 py-2 rounded-lg border text-sm font-medium transition-colors bg-white border-stone-300 text-stone-600 hover:bg-stone-100">
+        Hide Panel ›
+      </button>
+      <button id="editModeBtn" onclick="toggleEditMode()"
+        class="px-4 py-2 rounded-lg border text-sm font-medium transition-colors bg-white border-stone-300 text-stone-600 hover:bg-stone-100">
+        Edit Mode: OFF
+      </button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="flex gap-5 items-start flex-wrap lg:flex-nowrap">
+
+    <!-- Chart Grid -->
+    <div id="gridWrapper" class="flex-shrink-0 bg-white rounded-xl border border-stone-200 p-4 overflow-x-auto">
+      <!-- Column header row -->
+      <div id="colHeaders" class="flex mb-1 ml-[82px]"></div>
+      <!-- Rows -->
+      <div id="chartGrid"></div>
+    </div>
+
+    <!-- Side Panel -->
+    <div id="sidePanel" class="flex-1 min-w-[260px] space-y-4">
+
+      <!-- Instruction -->
+      <div class="bg-white rounded-xl border border-stone-200 p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-stone-400">Instruction</span>
+          <span id="rowSideLabel" class="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-semibold"></span>
+        </div>
+        <p id="rowInstruction" class="text-sm text-stone-700 leading-relaxed whitespace-pre-line"></p>
+      </div>
+
+      <!-- Edit controls -->
+      <div id="editControls" class="hidden bg-amber-50 rounded-xl border border-amber-200 p-4">
+        <div class="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-3">Edit Controls</div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="addStitch()"
+            class="px-3 py-1.5 text-xs font-medium bg-white border border-stone-200 rounded-lg hover:bg-stone-50 text-stone-700">
+            + Stitch
+          </button>
+          <button onclick="removeStitch()"
+            class="px-3 py-1.5 text-xs font-medium bg-white border border-stone-200 rounded-lg hover:bg-stone-50 text-stone-700">
+            − Stitch
+          </button>
+          <button onclick="addRowBelow()"
+            class="px-3 py-1.5 text-xs font-medium bg-white border border-stone-200 rounded-lg hover:bg-stone-50 text-stone-700">
+            + Row Below
+          </button>
+          <button onclick="deleteCurrentRow()"
+            class="px-3 py-1.5 text-xs font-medium bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 text-red-600">
+            Delete Row
+          </button>
+        </div>
+        <p class="text-xs text-amber-500 mt-2 leading-snug">Click any stitch cell to cycle its type</p>
+      </div>
+
+      <!-- Repeat Counter -->
+      <div id="repeatSection" class="bg-white rounded-xl border border-stone-200 p-4">
+        <div class="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Repeat Counter</div>
+        <div id="repeatContent"></div>
+      </div>
+
+      <!-- Notes -->
+      <div class="bg-white rounded-xl border border-stone-200 p-4">
+        <div class="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-2">
+          Notes &mdash; Row <span id="notesRowLabel">1</span>
+        </div>
+        <textarea id="notesInput" rows="3"
+          class="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 text-stone-700
+                 placeholder-stone-300 resize-none focus:outline-none focus:ring-2 focus:ring-stone-300"
+          placeholder="Add notes for this row..."
+          oninput="saveNote()"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="mt-5 bg-white rounded-xl border border-stone-200 p-4">
+    <div class="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Legend</div>
+    <div class="flex flex-wrap gap-3" id="legend"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Stitch config ──────────────────────────────────────────────────────────
+const STITCH_TYPES = ['K', 'P', 'YO', 'K2TOG', 'SSK', 'SL'];
+const SC = {
+  K:     { symbol: '·',  label: 'K',     desc: 'Knit',            bg: '#f8fafc', border: '#cbd5e1', text: '#334155' },
+  P:     { symbol: '–',  label: 'P',     desc: 'Purl',            bg: '#fffbeb', border: '#f59e0b', text: '#92400e' },
+  YO:    { symbol: 'O',  label: 'YO',    desc: 'Yarn Over',       bg: '#f0fdf4', border: '#6ee7b7', text: '#065f46' },
+  K2TOG: { symbol: '/',  label: 'K2tog', desc: 'Knit 2 Together', bg: '#fff1f2', border: '#fda4af', text: '#9f1239' },
+  SSK:   { symbol: '\\', label: 'SSK',   desc: 'Slip Slip Knit',  bg: '#faf5ff', border: '#c4b5fd', text: '#5b21b6' },
+  SL:    { symbol: 'v',  label: 'Sl',    desc: 'Slip',            bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
+};
+
+// ── Helper ─────────────────────────────────────────────────────────────────
+function ms(...args) {
+  const r = [];
+  for (let i = 0; i < args.length; i += 2)
+    for (let j = 0; j < args[i + 1]; j++) r.push(args[i]);
+  return r;
+}
+
+// ── Pattern data ───────────────────────────────────────────────────────────
+let pattern = [
+  {
+    num: 1, side: 'RS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
+    instruction: 'Row 1 (RS): *K2, P2; repeat from * to end. (24 sts)\nThis establishes the 2×2 rib that gives the brim its stretch.',
+  },
+  {
+    num: 2, side: 'WS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
+    instruction: 'Row 2 (WS): *P2, K2; repeat from * to end. (24 sts)\nWork stitches as they appear — knit the knits, purl the purls.',
+  },
+  {
+    num: 3, side: 'RS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
+    instruction: 'Row 3 (RS): *K2, P2; repeat from * to end. (24 sts)',
+  },
+  {
+    num: 4, side: 'WS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
+    instruction: 'Row 4 (WS): *P2, K2; repeat from * to end. (24 sts)',
+  },
+  {
+    num: 5, side: 'RS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
+    instruction: 'Row 5 (RS): *K2, P2; repeat from * to end. (24 sts)',
+  },
+  {
+    num: 6, side: 'WS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
+    instruction: 'Row 6 (WS): *P2, K2; repeat from * to end. (24 sts)',
+  },
+  {
+    num: 7, side: 'RS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
+    instruction: 'Row 7 (RS): *K2, P2; repeat from * to end. (24 sts)',
+  },
+  {
+    num: 8, side: 'WS', isRepeat: true, repeatTotal: 8,
+    stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
+    instruction: 'Row 8 (WS): *P2, K2; repeat from * to end. (24 sts)\nEnd of rib section. Brim should measure ~2 inches.',
+  },
+  {
+    num: 9, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('K',24),
+    instruction: 'Row 9 (RS): Knit to end. (24 sts)\nBegin stockinette body.',
+  },
+  {
+    num: 10, side: 'WS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('P',24),
+    instruction: 'Row 10 (WS): Purl to end. (24 sts)',
+  },
+  {
+    num: 11, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('K',24),
+    instruction: 'Row 11 (RS): Knit to end. (24 sts)',
+  },
+  {
+    num: 12, side: 'WS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('P',24),
+    instruction: 'Row 12 (WS): Purl to end. (24 sts)',
+  },
+  {
+    num: 13, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: Array.from({length: 12}, () => ['K', 'SL']).flat(),
+    instruction: 'Row 13 (RS): *K1, Sl1 wyib; repeat from * to end. (24 sts)\nKeep yarn at back when slipping. Creates a subtle woven texture.',
+  },
+  {
+    num: 14, side: 'WS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('P',24),
+    instruction: 'Row 14 (WS): Purl to end. (24 sts)',
+  },
+  {
+    num: 15, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1),
+    instruction: 'Row 15 (RS): *K2, YO, K2tog; repeat from * to end. (24 sts)\nDecorative eyelet row. YO and decrease cancel out — stitch count stays the same.',
+  },
+  {
+    num: 16, side: 'WS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('P',24),
+    instruction: 'Row 16 (WS): Purl to end. (24 sts)\nWork the YO loops as normal purl stitches.',
+  },
+  {
+    num: 17, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('K',4,'K2TOG',1,'K',4,'SSK',1,'K',4,'K2TOG',1,'K',4,'SSK',1),
+    instruction: 'Row 17 (RS): K4, K2tog, K4, SSK, K4, K2tog, K4, SSK. (20 sts)\nBegin crown shaping. Paired K2tog/SSK creates balanced mirror decreases.',
+  },
+  {
+    num: 18, side: 'WS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('P',20),
+    instruction: 'Row 18 (WS): Purl to end. (20 sts)',
+  },
+  {
+    num: 19, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('K',3,'K2TOG',1,'K',3,'SSK',1,'K',3,'K2TOG',1,'K',3,'SSK',1),
+    instruction: 'Row 19 (RS): K3, K2tog, K3, SSK, K3, K2tog, K3, SSK. (16 sts)',
+  },
+  {
+    num: 20, side: 'RS', isRepeat: false, repeatTotal: 0,
+    stitches: ms('K2TOG',1,'K2TOG',1,'K2TOG',1,'K2TOG',1,'SSK',1,'SSK',1,'SSK',1,'SSK',1),
+    instruction: 'Row 20 (RS): *K2tog; repeat from * to end. (8 sts)\nCut yarn ~12 inches. Thread tail through remaining 8 sts, pull tight, and secure.',
+  },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let activeRow = 0;
+let editMode = false;
+let notes = {};
+let repeatCounters = {}; // rowIndex -> current count
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function maxStitches() {
+  return Math.max(...pattern.map(r => r.stitches.length));
+}
+
+function renderColHeaders() {
+  const el = document.getElementById('colHeaders');
+  const max = maxStitches();
+  let html = '';
+  // 18px for dir arrow, 2px gap
+  html += `<div style="width:20px;flex-shrink:0"></div>`;
+  for (let i = 1; i <= max; i++) {
+    html += `<div class="col-label">${i}</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('chartGrid');
+  let html = '';
+  pattern.forEach((row, ri) => {
+    const isActive = ri === activeRow;
+    const sidebarBg = isActive ? '' : 'background:#f1f5f9;';
+    html += `<div class="row-wrap${isActive ? ' active' : ''}" onclick="selectRow(${ri})">`;
+    // Row number
+    html += `<div class="sidebar-cell" style="${sidebarBg}color:#475569;">${row.num}</div>`;
+    // Stitch count
+    html += `<div class="sidebar-cell" style="${sidebarBg}color:#94a3b8;font-weight:500;">${row.stitches.length}</div>`;
+    // Direction arrow
+    html += `<div class="dir-arrow">${row.side === 'RS' ? '←' : '→'}</div>`;
+    // Stitch cells — RS rows display reversed (right-to-left reading = last stitch on left)
+    const displayStitches = row.side === 'RS' ? [...row.stitches].reverse() : row.stitches;
+    displayStitches.forEach((st, si) => {
+      const cfg = SC[st] || SC.K;
+      const edClass = editMode ? ' editable' : '';
+      // Reverse the index back to get the real index for click handler
+      const realIdx = row.side === 'RS' ? row.stitches.length - 1 - si : si;
+      html += `<div class="stitch-cell${edClass}"
+        style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
+        title="${cfg.desc}"
+        ${editMode ? `onclick="event.stopPropagation();cycleStitch(${ri},${realIdx})"` : ''}>
+        ${cfg.symbol}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function renderSidePanel() {
+  const row = pattern[activeRow];
+  document.getElementById('currentRowDisplay').textContent = row.num;
+  document.getElementById('rowSideLabel').textContent = row.side === 'RS' ? 'RS — read ←' : 'WS — read →';
+  document.getElementById('rowInstruction').textContent = row.instruction;
+  document.getElementById('notesRowLabel').textContent = row.num;
+  document.getElementById('notesInput').value = notes[activeRow] || '';
+  renderRepeat();
+}
+
+function renderRepeat() {
+  const row = pattern[activeRow];
+  const el = document.getElementById('repeatContent');
+  if (!row.isRepeat) {
+    el.innerHTML = '<p class="text-sm text-stone-400">This row is not marked as a repeat section.</p>';
+    return;
+  }
+  if (!(activeRow in repeatCounters)) repeatCounters[activeRow] = 1;
+  const cur = repeatCounters[activeRow];
+  const tot = row.repeatTotal;
+  el.innerHTML = `
+    <div class="flex items-center gap-3">
+      <button onclick="changeRepeat(-1)"
+        class="w-8 h-8 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 text-lg font-medium flex items-center justify-center">−</button>
+      <div class="text-center">
+        <div class="text-xl font-bold text-stone-700">${cur} <span class="text-stone-300 font-normal">/</span> ${tot}</div>
+        <div class="text-xs text-stone-400">Rep ${cur} of ${tot}</div>
+      </div>
+      <button onclick="changeRepeat(1)"
+        class="w-8 h-8 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 text-lg font-medium flex items-center justify-center">+</button>
+      <button onclick="resetRepeat()"
+        class="ml-2 text-xs text-stone-400 hover:text-stone-600 underline">reset</button>
+    </div>`;
+}
+
+function renderLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = STITCH_TYPES.map(st => {
+    const cfg = SC[st];
+    return `<div class="flex items-center gap-1.5">
+      <div class="stitch-cell" style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};">${cfg.symbol}</div>
+      <span class="text-xs text-stone-600 font-medium">${cfg.label}</span>
+      <span class="text-xs text-stone-400">${cfg.desc}</span>
+    </div>`;
+  }).join('');
+}
+
+function render() {
+  renderColHeaders();
+  renderGrid();
+  renderSidePanel();
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+function selectRow(i) {
+  activeRow = i;
+  render();
+  // Scroll active row into view
+  document.querySelectorAll('.row-wrap')[i]?.scrollIntoView({ block: 'nearest' });
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  const btn = document.getElementById('editModeBtn');
+  btn.textContent = `Edit Mode: ${editMode ? 'ON' : 'OFF'}`;
+  btn.className = editMode
+    ? 'px-4 py-2 rounded-lg border text-sm font-medium transition-colors bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200'
+    : 'px-4 py-2 rounded-lg border text-sm font-medium transition-colors bg-white border-stone-300 text-stone-600 hover:bg-stone-100';
+  document.getElementById('editControls').classList.toggle('hidden', !editMode);
+  renderGrid();
+}
+
+function cycleStitch(rowIdx, stIdx) {
+  if (!editMode) return;
+  const st = pattern[rowIdx].stitches[stIdx];
+  const next = STITCH_TYPES[(STITCH_TYPES.indexOf(st) + 1) % STITCH_TYPES.length];
+  pattern[rowIdx].stitches[stIdx] = next;
+  renderGrid();
+}
+
+function addStitch() {
+  pattern[activeRow].stitches.push('K');
+  render();
+}
+
+function removeStitch() {
+  if (pattern[activeRow].stitches.length > 1)
+    pattern[activeRow].stitches.pop();
+  render();
+}
+
+function addRowBelow() {
+  const cur = pattern[activeRow];
+  const newRow = {
+    num: cur.num + 0.5,
+    side: cur.side === 'RS' ? 'WS' : 'RS',
+    isRepeat: false, repeatTotal: 0,
+    stitches: ms('K', cur.stitches.length),
+    instruction: 'New row — edit instruction here.',
+  };
+  pattern.splice(activeRow + 1, 0, newRow);
+  // Renumber
+  pattern.forEach((r, i) => { r.num = i + 1; });
+  activeRow = activeRow + 1;
+  render();
+}
+
+function deleteCurrentRow() {
+  if (pattern.length === 1) return;
+  pattern.splice(activeRow, 1);
+  pattern.forEach((r, i) => { r.num = i + 1; });
+  if (activeRow >= pattern.length) activeRow = pattern.length - 1;
+  render();
+}
+
+function saveNote() {
+  notes[activeRow] = document.getElementById('notesInput').value;
+}
+
+function changeRepeat(delta) {
+  const row = pattern[activeRow];
+  if (!row.isRepeat) return;
+  if (!(activeRow in repeatCounters)) repeatCounters[activeRow] = 1;
+  const next = repeatCounters[activeRow] + delta;
+  repeatCounters[activeRow] = Math.max(1, Math.min(next, row.repeatTotal));
+  renderRepeat();
+}
+
+function resetRepeat() {
+  repeatCounters[activeRow] = 1;
+  renderRepeat();
+}
+
+// ── Sidebar toggle ─────────────────────────────────────────────────────────
+let sidebarOpen = true;
+
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  const sidebar = document.getElementById('sidePanel');
+  const gridWrapper = document.getElementById('gridWrapper');
+  const btn = document.getElementById('sidebarToggleBtn');
+
+  if (sidebarOpen) {
+    sidebar.classList.remove('hidden');
+    gridWrapper.classList.remove('flex-1', 'w-full');
+    gridWrapper.classList.add('flex-shrink-0');
+    btn.textContent = 'Hide Panel ›';
+  } else {
+    sidebar.classList.add('hidden');
+    gridWrapper.classList.remove('flex-shrink-0');
+    gridWrapper.classList.add('flex-1', 'w-full');
+    btn.textContent = '‹ Show Panel';
+  }
+}
+
+// ── Keyboard navigation ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowUp' && activeRow > 0) {
+    e.preventDefault();
+    selectRow(activeRow - 1);
+  } else if (e.key === 'ArrowDown' && activeRow < pattern.length - 1) {
+    e.preventDefault();
+    selectRow(activeRow + 1);
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+renderLegend();
+render();
+</script>
+</body>
+</html>
