@@ -1,0 +1,8 @@
+I'm going to upload a knitting pattern PDF. Please convert it to a clean text file with the following structure:
+
+Title — the pattern name on its own line at the top
+Metadata — yarn weight, gauge, needle sizes, finished measurements. One item per line, labeled.
+Instructions — reproduce the row-by-row instructions exactly as written, preserving the original language. Don't translate, don't reformat, don't simplify. Keep all sizing variations (e.g. "100 (102) 104 (106)") exactly as they appear. Keep all section headers (e.g. piece names like 前片, 后片, 袖子) as they appear.
+Preserve structure — if the PDF uses bullet points, numbered steps, or indentation to show sub-sections within a row, keep that structure.
+
+Output as a plain .txt file. Do not interpret or convert any stitch abbreviations. Do not add commentary. Just faithfully reproduce the text content with clean formatting.

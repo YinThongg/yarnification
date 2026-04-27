@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>布鲁斯套衫 · 编织追踪器</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f9f9f8;
+      --surface: #ffffff;
+      --border: #e5e5e3;
+      --border-soft: #eeeeec;
+      --text: #1a1a18;
+      --text-secondary: #6b6b68;
+      --text-tertiary: #a8a8a4;
+      --accent: #d97706;
+      --panel-w: 380px;
+      --cell: 34px;
+      --header-h: 56px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────────── */
+    #topbar {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 20px; gap: 16px;
+      flex-shrink: 0; z-index: 10;
+    }
+    #topbar-title { flex: 1; }
+    #topbar-title h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+    #topbar-title p  { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; }
+    #topbar-right { display: flex; align-items: center; gap: 12px; }
+
+    .row-badge { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .row-badge-label { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-tertiary); }
+    #currentRowDisplay { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+    .row-badge-hint { font-size: 10px; color: var(--text-tertiary); }
+
+    #sizeSelect {
+      height: 32px; padding: 0 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 13px; font-weight: 500; color: var(--text-secondary);
+      cursor: pointer; outline: none; transition: border-color .12s;
+    }
+    #sizeSelect:focus { border-color: var(--accent); }
+
+    .size-label {
+      font-size: 11px; font-weight: 500;
+      letter-spacing: .05em; text-transform: uppercase;
+      color: var(--text-tertiary);
+    }
+
+    #editModeBtn {
+      height: 32px; padding: 0 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 13px; font-weight: 500; color: var(--text-secondary);
+      cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+    }
+    #editModeBtn:hover { background: var(--bg); }
+    #editModeBtn.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+
+    /* ── Content row ─────────────────────────────────────────────────── */
+    #content { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+    /* ── Canvas ──────────────────────────────────────────────────────── */
+    #canvasWrap {
+      flex: 1; position: relative; overflow: hidden; min-width: 0;
+      background-color: #f2f2f0;
+      background-image: radial-gradient(circle, #c6c6c2 1px, transparent 1px);
+      background-size: 24px 24px;
+      cursor: grab;
+    }
+    #canvasWrap.panning { cursor: grabbing; }
+
+    #canvas {
+      position: absolute; top: 0; left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    /* ── Grid objects on canvas ──────────────────────────────────────── */
+    .grid-obj { position: absolute; }
+
+    .grid-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: .05em; text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 8px; padding-left: 2px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 6px;
+    }
+    .grid-del {
+      opacity: 0; flex-shrink: 0;
+      width: 18px; height: 18px; border-radius: 4px;
+      border: none; background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; line-height: 1;
+      color: var(--text-tertiary);
+      transition: opacity .15s, background .1s, color .1s;
+    }
+    .grid-obj:hover .grid-del { opacity: 1; }
+    .grid-del:hover { background: rgba(0,0,0,.09); color: var(--text); }
+
+    .chart-card {
+      background: var(--surface);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 14px 18px 18px;
+      display: inline-block; min-width: min-content;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      transition: border-color .15s, box-shadow .15s;
+      cursor: default;
+    }
+    .chart-card.focused {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(217,119,6,.1), 0 2px 12px rgba(0,0,0,.09);
+    }
+
+    /* ── Chart cells ─────────────────────────────────────────────────── */
+    .stitch-cell {
+      width: var(--cell); height: var(--cell);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      border-width: 1px; border-style: solid; border-radius: 4px;
+      user-select: none; flex-shrink: 0;
+      transition: filter .08s, transform .06s;
+    }
+    .stitch-cell.ds-cell { font-size: 16px; }
+    .stitch-cell.editable { cursor: pointer; }
+    .stitch-cell.editable:hover { filter: brightness(.87); transform: scale(1.07); }
+    .stitch-cell.selected {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 2px var(--accent);
+      position: relative; z-index: 1;
+    }
+
+    .col-label {
+      width: var(--cell); height: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--text-tertiary);
+      flex-shrink: 0; font-variant-numeric: tabular-nums;
+    }
+
+    .row-wrap {
+      display: flex; align-items: center; gap: 3px;
+      padding: 2px 4px; cursor: pointer; border-radius: 6px;
+      transition: background .1s;
+    }
+    .row-wrap:hover { background: #f5f5f3; }
+    .row-wrap.active { background: #fef9c3; }
+
+    .sidebar-cell {
+      width: 28px; height: var(--cell);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; flex-shrink: 0;
+      border-radius: 4px; color: var(--text-secondary);
+    }
+    .row-wrap.active .sidebar-cell { color: #92400e; }
+
+    .dir-arrow {
+      width: 20px; height: var(--cell);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; color: var(--text-tertiary); flex-shrink: 0;
+    }
+
+    /* ── Zoom controls ───────────────────────────────────────────────── */
+    #zoomBar {
+      position: absolute; bottom: 16px; left: 16px;
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 3px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      z-index: 5; user-select: none;
+    }
+    .z-btn {
+      width: 28px; height: 28px; border-radius: 5px;
+      border: none; background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: var(--text-secondary);
+      transition: background .1s;
+    }
+    .z-btn:hover { background: var(--bg); }
+    #zoomLabel {
+      font-size: 12px; font-weight: 500; color: var(--text-secondary);
+      min-width: 40px; text-align: center; font-variant-numeric: tabular-nums;
+    }
+    .z-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+    .z-fit {
+      height: 28px; padding: 0 10px; border-radius: 5px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--text-secondary);
+      transition: background .1s;
+    }
+    .z-fit:hover { background: var(--bg); }
+
+    /* ── Right panel ─────────────────────────────────────────────────── */
+    #rightPanel {
+      width: var(--panel-w); flex-shrink: 0;
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transition: width .26s cubic-bezier(.4,0,.2,1);
+      overflow: hidden;
+    }
+    #rightPanel.collapsed { width: 0; border-left-color: transparent; }
+
+    #panelInner {
+      width: var(--panel-w); flex: 1;
+      display: flex; flex-direction: column; overflow: hidden;
+      transition: opacity .16s ease;
+    }
+    #rightPanel.collapsed #panelInner { opacity: 0; pointer-events: none; }
+
+    #panelHeader {
+      height: var(--header-h); border-bottom: 1px solid var(--border-soft);
+      display: flex; align-items: center; padding: 0 16px 0 20px;
+      flex-shrink: 0; gap: 8px;
+    }
+    #panelTitle { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    #panelCloseBtn {
+      width: 28px; height: 28px; border-radius: 6px;
+      border: none; background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-tertiary); transition: background .1s, color .1s;
+    }
+    #panelCloseBtn:hover { background: var(--bg); color: var(--text-secondary); }
+
+    #panelBody { flex: 1; overflow-y: auto; padding: 20px; }
+
+    /* Panel open tab */
+    #panelOpenBtn {
+      position: fixed; right: 0; top: calc(var(--header-h) + 20px);
+      z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    #panelOpenBtn.visible { opacity: 1; pointer-events: auto; }
+    #panelOpenBtnInner {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px 8px 8px;
+      background: var(--surface); border: 1px solid var(--border); border-right: none;
+      border-radius: 8px 0 0 8px; cursor: pointer;
+      color: var(--text-tertiary); font-size: 12px; font-weight: 500;
+      white-space: nowrap; transform: translateX(-100%);
+      transition: color .1s, background .1s;
+      box-shadow: -2px 0 8px rgba(0,0,0,.04);
+    }
+    #panelOpenBtnInner:hover { background: var(--bg); color: var(--text-secondary); }
+
+    /* Panel sections */
+    .panel-section { margin-bottom: 20px; }
+    .panel-section + .panel-section { padding-top: 20px; border-top: 1px solid var(--border-soft); }
+    .row-meta { font-size: 11px; font-weight: 500; color: var(--text-tertiary); letter-spacing: .03em; margin-bottom: 6px; }
+    #rowInstruction { font-size: 13px; line-height: 1.65; color: var(--text); white-space: pre-line; }
+
+    /* Metadata section */
+    .meta-grid {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 4px 10px; font-size: 12px;
+    }
+    .meta-key {
+      color: var(--text-tertiary); font-weight: 500; white-space: nowrap;
+      padding-top: 1px;
+    }
+    .meta-val { color: var(--text); line-height: 1.4; }
+    .meta-title {
+      font-size: 14px; font-weight: 700; color: var(--text);
+      margin-bottom: 10px; letter-spacing: -0.2px;
+    }
+
+    .field-label { font-size: 11px; font-weight: 500; color: var(--text-tertiary); margin-bottom: 6px; display: block; }
+    textarea {
+      width: 100%; font-size: 13px; border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px; color: var(--text);
+      background: var(--bg); resize: none; font-family: inherit;
+      line-height: 1.5; outline: none; transition: border-color .12s;
+    }
+    textarea::placeholder { color: var(--text-tertiary); }
+    textarea:focus { border-color: #a8a8a4; background: var(--surface); }
+
+    /* Legend */
+    #legend { display: flex; flex-direction: column; gap: 7px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .legend-item .stitch-cell { width: 26px; height: 26px; font-size: 11px; flex-shrink: 0; }
+    .legend-name { font-size: 12px; font-weight: 500; color: var(--text-secondary); min-width: 36px; }
+    .legend-desc { font-size: 12px; color: var(--text-tertiary); }
+
+    /* Repeat */
+    .repeat-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .repeat-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: var(--text-secondary); transition: background .1s;
+    }
+    .repeat-btn:hover { background: var(--bg); }
+    .repeat-val { font-size: 22px; font-weight: 700; min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+    .repeat-of  { font-size: 13px; color: var(--text-tertiary); }
+    .repeat-reset { font-size: 11px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+    .repeat-reset:hover { color: var(--text-secondary); }
+    .repeat-skip { font-size: 12px; color: #6b6b68; background: #f5f5f3; border-radius: 6px; padding: 6px 10px; }
+
+    /* Edit controls */
+    .edit-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 100px; padding: 2px 8px; margin-bottom: 10px; }
+    .edit-btn { height: 28px; padding: 0 10px; font-size: 12px; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); cursor: pointer; transition: background .1s; }
+    .edit-btn:hover { background: var(--bg); }
+    .edit-btn.danger { border-color: #fca5a5; color: #ef4444; }
+    .edit-btn.danger:hover { background: #fff1f2; }
+    .edit-hint { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div id="topbar">
+  <div id="topbar-title">
+    <h1>布鲁斯套衫 · Bruce Sweater</h1>
+    <p>从上往下圈织 · top-down seamless · 5 pieces · light fingering / 2 strands</p>
+  </div>
+  <div id="topbar-right">
+    <span class="size-label">Size</span>
+    <select id="sizeSelect" onchange="changeSize(this.selectedIndex)">
+      <option>XS</option>
+      <option>S</option>
+      <option>M</option>
+      <option>L</option>
+      <option>XL</option>
+      <option>2XL</option>
+      <option>3XL</option>
+      <option>4XL</option>
+    </select>
+    <div class="row-badge">
+      <span class="row-badge-label">Active Row</span>
+      <span id="currentRowDisplay">1</span>
+      <span class="row-badge-hint">↑↓ to navigate</span>
+    </div>
+    <button id="editModeBtn" onclick="toggleEditMode()">Edit Mode: OFF</button>
+  </div>
+</div>
+
+<!-- Content -->
+<div id="content">
+
+  <!-- Infinite canvas -->
+  <div id="canvasWrap">
+    <div id="canvas"></div>
+
+    <div id="zoomBar">
+      <button class="z-btn" onclick="zoomStep(-1)" title="Zoom out">−</button>
+      <span id="zoomLabel">100%</span>
+      <button class="z-btn" onclick="zoomStep(1)"  title="Zoom in">+</button>
+      <div class="z-sep"></div>
+      <button class="z-fit" onclick="fitToView()">Fit</button>
+    </div>
+  </div>
+
+  <!-- Panel re-open tab -->
+  <div id="panelOpenBtn" onclick="openPanel()">
+    <div id="panelOpenBtnInner">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Row Details
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div id="rightPanel">
+    <div id="panelInner">
+      <div id="panelHeader">
+        <span id="panelTitle">Row Details</span>
+        <button id="panelCloseBtn" onclick="closePanel()" title="Close">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div id="panelBody">
+
+        <!-- Pattern metadata (always visible) -->
+        <div class="panel-section">
+          <div class="meta-title">布鲁斯套衫 · Bruce Sweater</div>
+          <div class="meta-grid">
+            <span class="meta-key">设计</span>
+            <span class="meta-val">冯阿No · 小红书 / 淘宝</span>
+            <span class="meta-key">线材</span>
+            <span class="meta-val">Knitting for Olive Pure Silk 250m/50g · 100%丝 · light fingering · 双股织</span>
+            <span class="meta-key">棒针</span>
+            <span class="meta-val">起针/领边: 4mm (3.5mm) · 主体: 5mm</span>
+            <span class="meta-key">密度</span>
+            <span class="meta-val">19针 × 27行 = 10cm (5mm针, 双股, 平针)</span>
+            <span class="meta-key">成衣胸围</span>
+            <span class="meta-val">72 / 76 / 82 / 86 / 96 / 113 / 119 / 125 cm</span>
+            <span class="meta-key">衣长</span>
+            <span class="meta-val">48 / 49 / 50 / 52 / 53 / 55 / 57 / 59 cm</span>
+            <span class="meta-key">用线量</span>
+            <span class="meta-val">纯色: 300-500g · 混色: 各150-250g</span>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="row-meta" id="rowSideLabel"></div>
+          <div id="rowInstruction"></div>
+        </div>
+
+        <div class="panel-section">
+          <label class="field-label" for="notesInput">Notes · row <span id="notesRowLabel">1</span></label>
+          <textarea id="notesInput" rows="3" placeholder="Add notes for this row…" oninput="saveNote()"></textarea>
+        </div>
+
+        <div class="panel-section" id="repeatSection"></div>
+
+        <div class="panel-section">
+          <div class="field-label">Legend</div>
+          <div id="legend"></div>
+        </div>
+
+        <div class="panel-section hidden" id="editControls">
+          <div class="edit-pill">✦ Edit mode</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <button class="edit-btn" onclick="addStitch()">+ stitch</button>
+            <button class="edit-btn" onclick="removeStitch()">− stitch</button>
+            <button class="edit-btn" onclick="addRowBelow()">+ row below</button>
+            <button class="edit-btn danger" onclick="deleteCurrentRow()">Delete row</button>
+          </div>
+          <div class="edit-hint">Click any cell to cycle its stitch type.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Stitch config ──────────────────────────────────────────────────────────
+const STITCH_TYPES = ['K','P','YO','K2TOG','SSK','SL','M1','DS'];
+const SC = {
+  K:     { symbol:'·',  label:'K',     desc:'Knit · 下针',                    bg:'#f8fafc', border:'#cbd5e1', text:'#334155' },
+  P:     { symbol:'–',  label:'P',     desc:'Purl · 上针',                    bg:'#fffbeb', border:'#f59e0b', text:'#92400e' },
+  YO:    { symbol:'O',  label:'YO',    desc:'Yarn Over · 挂针',               bg:'#f0fdf4', border:'#6ee7b7', text:'#065f46' },
+  K2TOG: { symbol:'/',  label:'K2tog', desc:'Knit 2 Together · 左上2并1',     bg:'#fff1f2', border:'#fda4af', text:'#9f1239' },
+  SSK:   { symbol:'\\', label:'SSK',   desc:'Slip Slip Knit · 右上2并1',      bg:'#faf5ff', border:'#c4b5fd', text:'#5b21b6' },
+  SL:    { symbol:'v',  label:'Sl',    desc:'Slip · 滑针',                    bg:'#eff6ff', border:'#93c5fd', text:'#1e40af' },
+  M1:    { symbol:'+',  label:'M1',    desc:'Make 1 Increase · 加1针',        bg:'#ecfdf5', border:'#34d399', text:'#065f46' },
+  DS:    { symbol:'∥',  label:'DS',    desc:'Double Stitch · 双针 (德式短行)', bg:'#fdf4ff', border:'#e879f9', text:'#701a75' },
+};
+
+function ms(...a) {
+  const r = [];
+  for (let i = 0; i < a.length; i += 2) for (let j = 0; j < a[i+1]; j++) r.push(a[i]);
+  return r;
+}
+
+// ── Size system ────────────────────────────────────────────────────────────
+const SIZES = ['XS','S','M','L','XL','2XL','3XL','4XL'];
+let currentSize = 0;
+
+// grid-index _ row-index → repeat counts per size
+const SIZE_REPEATS = {
+  '0_3':  [2, 2, 2, 2, 3, 3, 4, 4],        // yoke: Short rows 3+4 pair
+  '0_5':  [2, 3, 4, 5, 5, 5, 5, 5],        // yoke: Rnd1+2 body inc
+  '0_6':  [7, 7, 7, 7, 7, 7, 7, 7],        // yoke: Rnd3 consecutive sleeve inc
+  '0_7':  [17, 18, 19, 20, 18, 15, 15, 15], // yoke: Rnd4+5 sleeve+plain
+  '0_8':  [4, 4, 5, 5, 7, 9, 9, 9],        // yoke: Rnd6+7 diagonal inc
+  '0_9':  [0, 0, 0, 0, 2, 3, 4, 5],        // yoke: Rnd8+9 XL+ body inc
+};
+
+function updateRepeatTotals() {
+  Object.entries(SIZE_REPEATS).forEach(([key, vals]) => {
+    const [gi, ri] = key.split('_').map(Number);
+    const count = vals[currentSize];
+    grids[gi].pattern[ri].repeatTotal = count;
+    grids[gi].pattern[ri].isRepeat = true; // always show counter (skip=0 handled in render)
+  });
+}
+
+function changeSize(si) {
+  currentSize = si;
+  updateRepeatTotals();
+  // Reset repeat counters for size-dependent rows
+  Object.keys(SIZE_REPEATS).forEach(key => {
+    const [gi, ri] = key.split('_').map(Number);
+    delete repeatCounters[`${gi}_${ri}`];
+  });
+  render();
+}
+
+// ── Grids ─────────────────────────────────────────────────────────────────
+const grids = [
+  // ── Grid 0: Yoke ──────────────────────────────────────────────────────
+  {
+    id: 'yoke', label: '领口与肩膀 · Yoke',
+    x: 60, y: 80,
+    activeRow: 0,
+    pattern: [
+      {
+        num: 1, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`起针 Cast On & Setup
+
+用4mm针和2股线，按长尾起针法紧紧地起：
+XS:100 / S:102 / M:104 / L:106 / XL:108 / 2XL:110 / 3XL:114 / 4XL:116 针
+
+放圈首尾BOR记号圈，形成圈织。换5mm针。
+
+建立圈（顺序）：
+• 右后片：24 (25) 25 (26) 26 (27) 28 (28) 下
+• 右肩：放记号圈，1下，放记号圈
+• 前片：49 (50) 51 (52) 53 (54) 56 (57) 下
+• 左肩：放记号圈，1下，放记号圈
+• 左后片：25 (25) 26 (26) 27 (27) 28 (29) 下
+
+共 100 (102) 104 (106) 108 (110) 114 (116) 针`
+      },
+      {
+        num: 2, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: [...ms('K', 14), 'M1', 'K', 'M1', 'K', 'K', 'DS'],
+        instruction:
+`短行1 Short Row 1（正面 RS）
+
+• 右后片：下针织到记号圈前，M1R
+• 右肩：滑过记号圈，1下，滑过记号圈
+• 右前片：M1L，2下，翻面——加了2针
+
+翻面后下一针制造DS（双针）`
+      },
+      {
+        num: 3, side: 'WS', isRepeat: false, repeatTotal: 0,
+        stitches: ['DS', ...ms('P', 14), 'M1', 'P', 'M1', 'P', 'P'],
+        instruction:
+`短行2 Short Row 2（反面 WS）
+
+• DS（制造"双"针）
+• 上针织到BOR
+• 左后片：上针织到记号圈前，M1L-p
+• 左肩：滑过记号圈，1上，滑过记号圈
+• 左前片：M1R-p，2上，翻面——加了2针
+
+加了2针`
+      },
+      {
+        num: 4, side: 'RS', isRepeat: true, repeatTotal: 2,
+        stitches: ['DS', ...ms('K', 12), 'M1', 'K', 'M1', 'K', 'K', 'DS'],
+        instruction:
+`短行3+4 组 Short Rows 3+4 Pair
+
+重复次数（按尺码）：
+XS:2 / S:2 / M:2 / L:2 / XL:3 / 2XL:3 / 3XL:4 / 4XL:4
+
+【短行3（正面 RS）】
+• DS，下针织到BOR
+• 右后片：下针织到记号圈前，M1R
+• 右肩：滑过记号圈，1下，滑过记号圈
+• 右前片：M1L，下针织到DS，kds，2下，翻面——加了2针
+
+【短行4（反面 WS）】
+• DS，上针织到BOR
+• 左后片：上针织到记号圈前，M1L-p
+• 左肩：滑过记号圈，1上，滑过记号圈
+• 左前片：M1R-p，上针织到DS，pds，2上，翻面——加了2针
+
+完成后针数（所有组做完）：
+112 (114) 116 (118) 124 (126) 134 (136) 针`
+      },
+      {
+        num: 5, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ['DS', ...ms('K', 19)],
+        instruction:
+`恢复圈织 Resume Round（正面 RS）
+
+• DS，下针织到BOR
+
+短行已完成，接下去恢复圈织。
+
+当前针数：112 (114) 116 (118) 124 (126) 134 (136) 针`
+      },
+      {
+        num: 6, side: 'RS', isRepeat: true, repeatTotal: 2,
+        stitches: [...ms('K', 7), 'M1', 'K', 'M1', ...ms('K', 6), 'M1', 'K', 'M1', 'K', 'K'],
+        instruction:
+`圈1+2 前后片加针组
+
+重复次数（按尺码）：
+XS:2 / S:3 / M:4 / L:5 / XL:5 / 2XL:5 / 3XL:5 / 4XL:5
+
+【圈1（加针圈）】
+• 右后片：下针织到记号圈前，M1R
+• 右肩：滑过记号圈，1下，滑过记号圈
+• 前片：M1L，下针织到记号圈前，M1R
+• 左肩：滑过记号圈，1下，滑过记号圈
+• 左后片：M1L，下针织到底——加了4针
+
+【圈2（平针圈）】
+• 下针织到底
+
+完成后针数（所有组做完）：
+120 (126) 132 (138) 144 (146) 154 (156) 针`
+      },
+      {
+        num: 7, side: 'RS', isRepeat: true, repeatTotal: 7,
+        stitches: [...ms('K', 4), 'M1', ...ms('K', 4), 'M1', ...ms('K', 4), 'M1', ...ms('K', 4), 'M1', ...ms('K', 2)],
+        instruction:
+`圈3 袖子加针（连续7圈，所有尺码相同）
+
+• 右后片：下针织到记号圈
+• 右肩（右袖）：滑过记号圈，M1L，下针织到记号圈前，M1R，滑过记号圈
+• 前片：下针织到记号圈
+• 左肩（左袖）：滑过记号圈，M1L，下针织到记号圈前，M1R，滑过记号圈
+• 左后片：下针织到底——加了4针
+
+连续织7次，中间无平针圈。
+
+完成后：
+• 前后片各：59 (62) 65 (68) 71 (72) 76 (77) 针
+• 左右袖子各：15 针`
+      },
+      {
+        num: 8, side: 'RS', isRepeat: true, repeatTotal: 17,
+        stitches: [...ms('K', 4), 'M1', ...ms('K', 4), 'M1', ...ms('K', 4), 'M1', ...ms('K', 4), 'M1', ...ms('K', 2)],
+        instruction:
+`圈4+5 袖子加针组
+
+重复次数（按尺码）：
+XS:17 / S:18 / M:19 / L:20 / XL:18 / 2XL:15 / 3XL:15 / 4XL:15
+
+【圈4（袖子加针）= 重复圈3的操作】
+• 右袖：M1L，下针到底，M1R
+• 左袖：M1L，下针到底，M1R
+• 前后片：下针到底——加了4针
+
+【圈5（平针圈）】
+• 下针织到底
+
+完成后针数（所有组做完）：
+216 (226) 236 (246) 244 (234) 242 (244) 针`
+      },
+      {
+        num: 9, side: 'RS', isRepeat: true, repeatTotal: 4,
+        stitches: [...ms('K', 3), 'M1', 'K', 'M1', ...ms('K', 4), 'M1', ...ms('K', 4), 'M1', 'K', 'M1', ...ms('K', 3), 'M1', 'K'],
+        instruction:
+`圈6+7 斜肩加针组
+
+重复次数（按尺码）：
+XS:4 / S:4 / M:5 / L:5 / XL:7 / 2XL:9 / 3XL:9 / 4XL:9
+
+【圈6（斜肩加针）】
+• 右后片：下针织到记号圈的2针前，M1R，2下
+• 右肩：滑过记号圈，M1L，下针织到记号圈前，M1R，滑过记号圈
+• 前片：2下，M1L，下针织到记号圈的2针前，M1R，2下
+• 左肩：滑过记号圈，M1L，下针织到记号圈前，M1R，滑过记号圈
+• 左后片：2下，M1L，下针织到底——加了8针
+
+【圈7（平针圈）】
+• 下针织到底
+
+完成后针数（所有组做完）：
+248 (258) 276 (286) 300 (306) 314 (316) 针`
+      },
+      {
+        num: 10, side: 'RS', isRepeat: true, repeatTotal: 0,
+        stitches: [...ms('K', 8), 'M1', ...ms('K', 8), 'M1', ...ms('K', 2)],
+        instruction:
+`圈8+9 前后片加针组【仅XL及以上码】
+
+XS / S / M / L：跳过此行，直接进入"分离袖子"。
+
+重复次数（按尺码）：
+XL:2 / 2XL:3 / 3XL:4 / 4XL:5
+
+【圈8（仅前后片加针）】
+• 右后片：下针织到记号圈的2针前，M1R，2下
+• 右肩：滑过记号圈，下针织到记号圈，滑过记号圈（不加针）
+• 前片：2下，M1L，下针织到记号圈的2针前，M1R，2下
+• 左肩：滑过记号圈，下针织到记号圈，滑过记号圈（不加针）
+• 左后片：2下，M1L，下针织到底——加了4针
+
+【圈9（平针圈）】
+• 下针织到底
+
+完成后针数（所有组做完）：
+— / — / — / — / 308 (318) 330 (336) 针`
+      },
+      {
+        num: 11, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`分离袖子 Separate Sleeves & Body
+
+【分离圈】
+1. 取下BOR，下针织到记号圈，取下记号圈
+2. 将右袖的 57 (59) 63 (65) 65 (63) 63 (63) 针放到废线上
+3. 按卷针加针法起 1 (2) 2 (3) 4 (5) 6 (7) 针，放新BOR，再起 1 (2) 2 (3) 4 (5) 6 (7) 针（共右腋下 2/4/4/6/8/10/12/14 针）
+4. 取下记号圈，前片下针织到记号圈，取下记号圈
+5. 将左袖的 57 (59) 63 (65) 65 (63) 63 (63) 针放到废线上
+6. 起 2 (4) 4 (6) 8 (10) 12 (14) 针作左腋下
+
+身体共：138 (148) 158 (168) 186 (212) 228 (238) 针
+继续织"身体"部分（见 Body 网格）。
+袖子针留在废线上（见 Sleeve 网格）。`
+      },
+    ],
+  },
+
+  // ── Grid 1: Body ──────────────────────────────────────────────────────
+  {
+    id: 'body', label: '身体 · Body',
+    x: 1060, y: 80,
+    activeRow: 0,
+    pattern: [
+      {
+        num: 1, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`开始织身体 Start Body
+
+袖子分离后，身体在圈上继续。
+
+当前针数：
+138 (148) 158 (168) 186 (212) 228 (238) 针
+
+BOR在右腋下中央。接下去不加不减按平针圈织。`
+      },
+      {
+        num: 2, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`平针圈织 Plain Stockinette Rounds
+
+不加不减按平针圈织，边织边量长度。
+
+从前领中间量起，目标衣长：
+XS:48 / S:49 / M:50 / L:52 / XL:53 / 2XL:55 / 3XL:57 / 4XL:59 cm
+
+密度参考：27行 ≈ 10cm
+（从腋下大约还需再织 ~130-160圈，视尺码和起点而定）`
+      },
+      {
+        num: 3, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`收针 Bind Off
+
+到达目标衣长后，松松地收针。
+
+建议用比主体大1-2号的针收针，确保收针边有足够弹性。`
+      },
+    ],
+  },
+
+  // ── Grid 2: Left Sleeve ───────────────────────────────────────────────
+  {
+    id: 'sleeve-l', label: '左袖 · Left Sleeve',
+    x: 60, y: 900,
+    activeRow: 0,
+    pattern: [
+      {
+        num: 1, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`起针挑针 Sleeve Setup
+
+将废线上的左袖 57 (59) 63 (65) 65 (63) 63 (63) 针放在4mm针上。
+
+沿身体腋下起针边挑针：
+挑 2 (4) 4 (6) 8 (10) 12 (14) 针
+BOR放在挑针中央（每侧各一半腋下针）。
+
+形成圈织，共：
+59 (63) 67 (71) 73 (73) 75 (77) 针`
+      },
+      {
+        num: 2, side: 'RS', isRepeat: true, repeatTotal: 10,
+        stitches: ms('K', 20),
+        instruction:
+`前10圈平针 First 10 Plain Rounds（所有尺码相同）
+
+不加不减按平针圈织10圈。`
+      },
+      {
+        num: 3, side: 'RS', isRepeat: true, repeatTotal: 5,
+        stitches: ['K', 'K', 'K2TOG', ...ms('K', 14), 'SSK', 'K', 'K'],
+        instruction:
+`减针组 Decrease Set × 5（所有尺码相同）
+
+每组包含：
+
+【圈1（减针圈）】
+2下，k2tog，下针织到最后4针前，ssk，2下——减了2针
+
+【圈2-6（平针5圈）】
+下针织到底
+
+共做5组（圈1-6）。
+
+完成后：49 (53) 57 (61) 63 (63) 65 (67) 针`
+      },
+      {
+        num: 4, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`平针至30cm Plain to 30cm from Underarm
+
+减针完成后，不加不减按平针圈织。
+直至袖子从腋下量起长30cm。
+
+密度参考：27圈 ≈ 10cm`
+      },
+      {
+        num: 5, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ['K', 'K', 'M1', ...ms('K', 14), 'M1', 'K', 'K'],
+        instruction:
+`袖口加针 Cuff Increase Round
+
+2下，M1L，下针织到最后2针前，M1R，2下——加了2针
+
+完成后：51 (55) 59 (63) 65 (65) 67 (69) 针`
+      },
+      {
+        num: 6, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`继续平针 Continue Plain Rounds
+
+不加不减按平针圈织：
+XS:12 / S:13 / M:13 / L:14 / XL:15 / 2XL:15 / 3XL:13 / 4XL:13 cm
+
+完成后袖子从腋下总长：
+XS:42 / S:43 / M:43 / L:44 / XL:45 / 2XL:45 / 3XL:43 / 4XL:43 cm`
+      },
+      {
+        num: 7, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`收针 Bind Off
+
+松松地收针。
+
+建议用比主体大1-2号的针收针。
+
+按同样方法编织右袖（见 Right Sleeve 网格）。`
+      },
+    ],
+  },
+
+  // ── Grid 3: Right Sleeve ─────────────────────────────────────────────
+  {
+    id: 'sleeve-r', label: '右袖 · Right Sleeve',
+    x: 760, y: 900,
+    activeRow: 0,
+    pattern: [
+      {
+        num: 1, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`起针挑针 Sleeve Setup（右袖与左袖步骤完全相同）
+
+将废线上的右袖 57 (59) 63 (65) 65 (63) 63 (63) 针放在4mm针上。
+
+沿身体腋下起针边挑针：
+挑 2 (4) 4 (6) 8 (10) 12 (14) 针
+BOR放在挑针中央。
+
+形成圈织，共：
+59 (63) 67 (71) 73 (73) 75 (77) 针`
+      },
+      {
+        num: 2, side: 'RS', isRepeat: true, repeatTotal: 10,
+        stitches: ms('K', 20),
+        instruction:
+`前10圈平针 First 10 Plain Rounds（所有尺码相同）
+
+不加不减按平针圈织10圈。`
+      },
+      {
+        num: 3, side: 'RS', isRepeat: true, repeatTotal: 5,
+        stitches: ['K', 'K', 'K2TOG', ...ms('K', 14), 'SSK', 'K', 'K'],
+        instruction:
+`减针组 Decrease Set × 5（所有尺码相同）
+
+每组包含：
+
+【圈1（减针圈）】
+2下，k2tog，下针织到最后4针前，ssk，2下——减了2针
+
+【圈2-6（平针5圈）】
+下针织到底
+
+共做5组（圈1-6）。
+
+完成后：49 (53) 57 (61) 63 (63) 65 (67) 针`
+      },
+      {
+        num: 4, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`平针至30cm Plain to 30cm from Underarm
+
+减针完成后，不加不减按平针圈织。
+直至袖子从腋下量起长30cm。`
+      },
+      {
+        num: 5, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ['K', 'K', 'M1', ...ms('K', 14), 'M1', 'K', 'K'],
+        instruction:
+`袖口加针 Cuff Increase Round
+
+2下，M1L，下针织到最后2针前，M1R，2下——加了2针
+
+完成后：51 (55) 59 (63) 65 (65) 67 (69) 针`
+      },
+      {
+        num: 6, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`继续平针 Continue Plain Rounds
+
+不加不减按平针圈织：
+XS:12 / S:13 / M:13 / L:14 / XL:15 / 2XL:15 / 3XL:13 / 4XL:13 cm`
+      },
+      {
+        num: 7, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`收针 Bind Off
+
+松松地收针。
+
+收净线头，轻柔定型。大功告成！`
+      },
+    ],
+  },
+
+  // ── Grid 4: Neckband (optional) ───────────────────────────────────────
+  {
+    id: 'neckband', label: '领边 · Neckband（可选 Optional）',
+    x: 1480, y: 80,
+    activeRow: 0,
+    pattern: [
+      {
+        num: 1, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ms('K', 20),
+        instruction:
+`挑针 Pick Up Stitches（可选步骤）
+
+如果想要更平整的领口边，可做此步骤。
+
+用3.5mm针，从任一肩缝处开始沿领圈挑：
+100 (102) 104 (106) 108 (110) 114 (116) 针`
+      },
+      {
+        num: 2, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ['K', 'K', 'K'],
+        instruction:
+`I-cord 起针 I-cord Cast On
+
+按编织起针法在左棒针上起3针。
+
+（I-cord收针用3针，独立于领圈挑针之外）`
+      },
+      {
+        num: 3, side: 'RS', isRepeat: true, repeatTotal: 100,
+        stitches: ['K', 'K', 'K2TOG'],
+        instruction:
+`I-cord 收针 I-cord Bind-off
+
+重复步骤（重复次数 = 已挑针数，100-116针按尺码）：
+1. 2下
+2. k2tog-tbl（左上扭下针2并1：同时织左棒针上最后1针与领圈的1针）——右棒针上有3针
+3. 将右棒针上的3针放回左棒针上
+
+重复直至最后剩3针。`
+      },
+      {
+        num: 4, side: 'RS', isRepeat: false, repeatTotal: 0,
+        stitches: ['K', 'K', 'K'],
+        instruction:
+`收尾 Finish
+
+缝合剩下3针与起针3针首尾相接。
+
+收净线头，轻柔定型。完成！`
+      },
+    ],
+  },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────
+let focusedGrid  = 0;
+let editMode     = false;
+let panelOpen    = true;
+let selectedCell = null;
+let notes          = {};
+let repeatCounters = {};
+
+// ── Canvas state ──────────────────────────────────────────────────────────
+let cx = 0, cy = 0, cz = 1;
+let isPanning = false, panStart = {x:0,y:0}, panOrigin = {x:0,y:0};
+
+const canvasWrap = document.getElementById('canvasWrap');
+const canvasEl   = document.getElementById('canvas');
+
+function applyTransform() {
+  canvasEl.style.transform = `translate(${cx}px,${cy}px) scale(${cz})`;
+  const sp = 24 * cz;
+  const ox = ((cx % sp) + sp) % sp;
+  const oy = ((cy % sp) + sp) % sp;
+  canvasWrap.style.backgroundSize     = `${sp}px ${sp}px`;
+  canvasWrap.style.backgroundPosition = `${ox}px ${oy}px`;
+  document.getElementById('zoomLabel').textContent = Math.round(cz * 100) + '%';
+}
+
+// ── Canvas events ─────────────────────────────────────────────────────────
+canvasWrap.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  if (e.target.closest('.grid-obj')) return;
+  if (selectedCell) { selectedCell = null; renderAllGrids(); }
+  isPanning = true;
+  panStart  = {x: e.clientX, y: e.clientY};
+  panOrigin = {x: cx, y: cy};
+  canvasWrap.classList.add('panning');
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  cx = panOrigin.x + e.clientX - panStart.x;
+  cy = panOrigin.y + e.clientY - panStart.y;
+  applyTransform();
+});
+
+window.addEventListener('mouseup', () => {
+  if (isPanning) { isPanning = false; canvasWrap.classList.remove('panning'); }
+});
+
+canvasWrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey) {
+    zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.013));
+  } else if (e.deltaMode === 1 || (!e.deltaX && Math.abs(e.deltaY) >= 50)) {
+    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1/1.12);
+  } else {
+    cx -= e.deltaX;
+    cy -= e.deltaY;
+    applyTransform();
+  }
+}, { passive: false });
+
+function zoomAt(clientX, clientY, factor) {
+  const newZ = Math.max(0.08, Math.min(5, cz * factor));
+  const rect = canvasWrap.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const py = clientY - rect.top;
+  cx = px - (px - cx) * (newZ / cz);
+  cy = py - (py - cy) * (newZ / cz);
+  cz = newZ;
+  applyTransform();
+}
+
+function zoomStep(dir) {
+  const rect = canvasWrap.getBoundingClientRect();
+  zoomAt(rect.left + rect.width/2, rect.top + rect.height/2, dir > 0 ? 1.2 : 1/1.2);
+}
+
+function fitToView() {
+  const els = document.querySelectorAll('.grid-obj');
+  if (!els.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  els.forEach((el, i) => {
+    const g = grids[i];
+    minX = Math.min(minX, g.x);
+    minY = Math.min(minY, g.y);
+    maxX = Math.max(maxX, g.x + el.offsetWidth);
+    maxY = Math.max(maxY, g.y + el.offsetHeight);
+  });
+  const pad = 64;
+  const cw = canvasWrap.offsetWidth;
+  const ch = canvasWrap.offsetHeight;
+  const bbW = maxX - minX, bbH = maxY - minY;
+  cz = Math.min((cw - pad*2) / bbW, (ch - pad*2) / bbH, 2);
+  cx = cw/2 - (minX + bbW/2) * cz;
+  cy = ch/2 - (minY + bbH/2) * cz;
+  applyTransform();
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────
+function renderAllGrids() {
+  canvasEl.innerHTML = grids.map((g, gi) => renderGridHTML(g, gi)).join('');
+}
+
+function renderGridHTML(g, gi) {
+  const focused = gi === focusedGrid;
+  const maxSt = Math.max(...g.pattern.map(r => r.stitches.length));
+
+  let colHdr = `<div style="width:85px;flex-shrink:0;"></div>`;
+  for (let i = 1; i <= maxSt; i++) {
+    if (i > 1) colHdr += `<div style="width:3px;flex-shrink:0;"></div>`;
+    colHdr += `<div class="col-label">${i}</div>`;
+  }
+
+  let rows = '';
+  g.pattern.forEach((row, ri) => {
+    const active = ri === g.activeRow;
+    rows += `<div class="row-wrap${active?' active':''}" onclick="selectRow(${gi},${ri})">`;
+    rows += `<div class="sidebar-cell">${row.num}</div>`;
+    rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${row.stitches.length}</div>`;
+    rows += `<div class="dir-arrow">${row.side==='RS'?'←':'→'}</div>`;
+    const display = row.side==='RS' ? [...row.stitches].reverse() : row.stitches;
+    display.forEach((st, si) => {
+      const cfg = SC[st] || SC.K;
+      const ec  = editMode ? ' editable' : '';
+      const ri2 = row.side==='RS' ? row.stitches.length-1-si : si;
+      const sel = selectedCell && selectedCell.gi===gi && selectedCell.ri===ri && selectedCell.si===ri2 ? ' selected' : '';
+      const dsClass = st === 'DS' ? ' ds-cell' : '';
+      if (si > 0) rows += `<div style="width:3px;flex-shrink:0;"></div>`;
+      rows += `<div class="stitch-cell${ec}${sel}${dsClass}"
+        style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
+        title="${cfg.desc}"
+        onclick="event.stopPropagation();selectCell(${gi},${ri},${ri2})">
+        ${cfg.symbol}</div>`;
+    });
+    rows += `</div>`;
+  });
+
+  return `
+    <div class="grid-obj" style="left:${g.x}px;top:${g.y}px;" data-gi="${gi}"
+         onclick="focusGrid(${gi})">
+      <div class="grid-label">
+        <span>${g.label}</span>
+        <button class="grid-del" title="Delete grid"
+          onclick="event.stopPropagation();deleteGrid(${gi})">×</button>
+      </div>
+      <div class="chart-card${focused?' focused':''}">
+        <div style="display:flex;margin-bottom:4px;">${colHdr}</div>
+        <div>${rows}</div>
+      </div>
+    </div>`;
+}
+
+function renderSidePanel() {
+  const g   = grids[focusedGrid];
+  const row = g.pattern[g.activeRow];
+  document.getElementById('currentRowDisplay').textContent = row.num;
+  document.getElementById('panelTitle').textContent = `${g.label.split('·')[0].trim()} · Row ${row.num}`;
+  document.getElementById('rowSideLabel').textContent =
+    row.side === 'RS' ? '正面 RS · 圈织 →' : '反面 WS · ← 翻面行';
+  document.getElementById('rowInstruction').textContent = row.instruction;
+  document.getElementById('notesRowLabel').textContent = row.num;
+  document.getElementById('notesInput').value = notes[`${focusedGrid}_${g.activeRow}`] || '';
+  renderRepeat();
+}
+
+function renderRepeat() {
+  const g   = grids[focusedGrid];
+  const row = g.pattern[g.activeRow];
+  const el  = document.getElementById('repeatSection');
+  if (!row.isRepeat) { el.innerHTML = ''; return; }
+
+  const tot = row.repeatTotal;
+
+  // Size-dependent row with 0 repeats for this size → show skip message
+  if (tot === 0) {
+    el.innerHTML = `<label class="field-label">Repeat count</label>
+      <div class="repeat-skip">⚠ 当前尺码（${SIZES[currentSize]}）跳过此行</div>`;
+    return;
+  }
+
+  const key = `${focusedGrid}_${g.activeRow}`;
+  if (!(key in repeatCounters)) repeatCounters[key] = 1;
+  const cur = repeatCounters[key];
+  el.innerHTML = `
+    <label class="field-label">Repeat count · ${SIZES[currentSize]}: ${tot} total</label>
+    <div class="repeat-row">
+      <button class="repeat-btn" onclick="changeRepeat(-1)">−</button>
+      <span class="repeat-val">${cur}</span>
+      <span class="repeat-of">/ ${tot}</span>
+      <button class="repeat-btn" onclick="changeRepeat(1)">+</button>
+    </div>
+    <button class="repeat-reset" onclick="resetRepeat()">reset</button>`;
+}
+
+function renderLegend() {
+  document.getElementById('legend').innerHTML = STITCH_TYPES.map(st => {
+    const c = SC[st];
+    const dsClass = st === 'DS' ? ' ds-cell' : '';
+    return `<div class="legend-item">
+      <div class="stitch-cell${dsClass}" style="width:26px;height:26px;font-size:${st==='DS'?'14':'11'}px;background:${c.bg};border-color:${c.border};border-width:1px;border-style:solid;border-radius:4px;color:${c.text};display:inline-flex;align-items:center;justify-content:center;font-weight:700;">${c.symbol}</div>
+      <span class="legend-name">${c.label}</span>
+      <span class="legend-desc">${c.desc}</span>
+    </div>`;
+  }).join('');
+}
+
+function render() { renderAllGrids(); renderSidePanel(); }
+
+// ── Actions ───────────────────────────────────────────────────────────────
+function selectCell(gi, ri, si) {
+  if (!editMode) return;
+  const alreadySelected = selectedCell && selectedCell.gi===gi && selectedCell.ri===ri && selectedCell.si===si;
+  selectedCell = { gi, ri, si };
+  focusedGrid = gi;
+  grids[gi].activeRow = ri;
+  renderSidePanel();
+  if (alreadySelected) {
+    cycleStitch(gi, ri, si);
+  } else {
+    renderAllGrids();
+  }
+}
+
+function deleteGrid(gi) {
+  if (grids.length === 1) return;
+  grids.splice(gi, 1);
+  focusedGrid = Math.min(focusedGrid, grids.length - 1);
+  render();
+}
+
+function focusGrid(gi) {
+  if (focusedGrid === gi) return;
+  focusedGrid = gi;
+  render();
+}
+
+function selectRow(gi, ri) {
+  selectedCell = null;
+  focusedGrid = gi;
+  grids[gi].activeRow = ri;
+  render();
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  if (!editMode) { selectedCell = null; renderAllGrids(); }
+  const btn = document.getElementById('editModeBtn');
+  btn.textContent = `Edit Mode: ${editMode ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', editMode);
+  document.getElementById('editControls').classList.toggle('hidden', !editMode);
+  renderAllGrids();
+}
+
+function cycleStitch(gi, ri, si) {
+  if (!editMode) return;
+  const st = grids[gi].pattern[ri].stitches[si];
+  grids[gi].pattern[ri].stitches[si] = STITCH_TYPES[(STITCH_TYPES.indexOf(st)+1) % STITCH_TYPES.length];
+  renderAllGrids();
+}
+
+function addStitch() {
+  grids[focusedGrid].pattern[grids[focusedGrid].activeRow].stitches.push('K');
+  render();
+}
+
+function removeStitch() {
+  const row = grids[focusedGrid].pattern[grids[focusedGrid].activeRow];
+  if (row.stitches.length > 1) row.stitches.pop();
+  render();
+}
+
+function addRowBelow() {
+  const g = grids[focusedGrid];
+  const cur = g.pattern[g.activeRow];
+  g.pattern.splice(g.activeRow + 1, 0, {
+    num: cur.num + 0.5,
+    side: cur.side === 'RS' ? 'WS' : 'RS',
+    isRepeat: false, repeatTotal: 0,
+    stitches: ms('K', cur.stitches.length),
+    instruction: 'New row — edit instruction here.',
+  });
+  g.pattern.forEach((r, i) => { r.num = i + 1; });
+  g.activeRow += 1;
+  render();
+}
+
+function deleteCurrentRow() {
+  const g = grids[focusedGrid];
+  if (g.pattern.length === 1) return;
+  g.pattern.splice(g.activeRow, 1);
+  g.pattern.forEach((r, i) => { r.num = i + 1; });
+  if (g.activeRow >= g.pattern.length) g.activeRow = g.pattern.length - 1;
+  render();
+}
+
+function saveNote() {
+  notes[`${focusedGrid}_${grids[focusedGrid].activeRow}`] = document.getElementById('notesInput').value;
+}
+
+function changeRepeat(delta) {
+  const g = grids[focusedGrid];
+  if (!g.pattern[g.activeRow].isRepeat) return;
+  const tot = g.pattern[g.activeRow].repeatTotal;
+  if (tot === 0) return;
+  const key = `${focusedGrid}_${g.activeRow}`;
+  if (!(key in repeatCounters)) repeatCounters[key] = 1;
+  repeatCounters[key] = Math.max(1, Math.min(repeatCounters[key] + delta, tot));
+  renderRepeat();
+}
+
+function resetRepeat() {
+  repeatCounters[`${focusedGrid}_${grids[focusedGrid].activeRow}`] = 1;
+  renderRepeat();
+}
+
+// ── Panel toggle ──────────────────────────────────────────────────────────
+function openPanel() {
+  panelOpen = true;
+  document.getElementById('rightPanel').classList.remove('collapsed');
+  document.getElementById('panelOpenBtn').classList.remove('visible');
+}
+
+function closePanel() {
+  panelOpen = false;
+  document.getElementById('rightPanel').classList.add('collapsed');
+  document.getElementById('panelOpenBtn').classList.add('visible');
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const g = grids[focusedGrid];
+
+  if (e.key === 'Escape' && selectedCell) {
+    e.preventDefault();
+    selectedCell = null;
+    renderAllGrids();
+    return;
+  }
+
+  if (editMode && selectedCell) {
+    const { gi, ri, si } = selectedCell;
+    const row = grids[gi].pattern[ri];
+    const stitches = row.stitches;
+    const isRS = row.side === 'RS';
+    const visualPos = isRS ? (stitches.length - 1 - si) : si;
+
+    if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      const newVis = Math.max(0, visualPos - 1);
+      selectedCell = { gi, ri, si: isRS ? (stitches.length - 1 - newVis) : newVis };
+      renderAllGrids(); return;
+    }
+    if (e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      const newVis = Math.min(stitches.length - 1, visualPos + 1);
+      selectedCell = { gi, ri, si: isRS ? (stitches.length - 1 - newVis) : newVis };
+      renderAllGrids(); return;
+    }
+    if (e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      if (ri > 0) {
+        const newRi = ri - 1;
+        const newRow = grids[gi].pattern[newRi];
+        const newIsRS = newRow.side === 'RS';
+        const clampedVis = Math.min(visualPos, newRow.stitches.length - 1);
+        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : clampedVis };
+        grids[gi].activeRow = newRi;
+        renderSidePanel(); renderAllGrids();
+      }
+      return;
+    }
+    if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      if (ri < grids[gi].pattern.length - 1) {
+        const newRi = ri + 1;
+        const newRow = grids[gi].pattern[newRi];
+        const newIsRS = newRow.side === 'RS';
+        const clampedVis = Math.min(visualPos, newRow.stitches.length - 1);
+        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : clampedVis };
+        grids[gi].activeRow = newRi;
+        renderSidePanel(); renderAllGrids();
+      }
+      return;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      cycleStitch(gi, ri, si); return;
+    }
+    if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      stitches.splice(si + 1, 0, 'K');
+      selectedCell = { gi, ri, si: si + 1 };
+      render(); return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      if (stitches.length > 1) {
+        stitches.splice(si, 1);
+        selectedCell = { gi, ri, si: Math.min(si, stitches.length - 1) };
+      }
+      render(); return;
+    }
+    return;
+  }
+
+  if (e.key === 'ArrowUp' && g.activeRow > 0) {
+    e.preventDefault(); selectRow(focusedGrid, g.activeRow - 1);
+  } else if (e.key === 'ArrowDown' && g.activeRow < g.pattern.length - 1) {
+    e.preventDefault(); selectRow(focusedGrid, g.activeRow + 1);
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+updateRepeatTotals();
+renderLegend();
+render();
+requestAnimationFrame(fitToView);
+</script>
+</body>
+</html>
