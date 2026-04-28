@@ -1,0 +1,1831 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knitting Pattern Tracker</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #f9f9f8;
+        --surface: #ffffff;
+        --border: #e5e5e3;
+        --border-soft: #eeeeec;
+        --text: #1a1a18;
+        --text-secondary: #6b6b68;
+        --text-tertiary: #a8a8a4;
+        --accent: #d97706;
+        --panel-w: 360px;
+        --cell: 34px;
+        --header-h: 56px;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── Topbar ─────────────────────────────────────────────────────── */
+      #topbar {
+        height: var(--header-h);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 16px;
+        flex-shrink: 0;
+        z-index: 10;
+      }
+      #topbar-title {
+        flex: 1;
+      }
+      #topbar-title h1 {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      #topbar-title p {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        margin-top: 1px;
+      }
+      #topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .row-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+      }
+      .row-badge-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      #currentRowDisplay {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -1px;
+      }
+      .row-badge-hint {
+        font-size: 10px;
+        color: var(--text-tertiary);
+      }
+
+      #editModeBtn {
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          border-color 0.12s,
+          color 0.12s;
+      }
+      #editModeBtn:hover {
+        background: var(--bg);
+      }
+      #editModeBtn.active {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+      }
+
+      /* ── Content row ─────────────────────────────────────────────────── */
+      #content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      /* ── Canvas ──────────────────────────────────────────────────────── */
+      #canvasWrap {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        min-width: 0;
+        background-color: #f2f2f0;
+        background-image: radial-gradient(circle, #c6c6c2 1px, transparent 1px);
+        background-size: 24px 24px;
+        cursor: grab;
+      }
+      #canvasWrap.panning {
+        cursor: grabbing;
+      }
+
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
+
+      /* ── Grid objects on canvas ──────────────────────────────────────── */
+      .grid-obj {
+        position: absolute;
+      }
+
+      .grid-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        margin-bottom: 8px;
+        padding-left: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .grid-del {
+        opacity: 0;
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 1;
+        color: var(--text-tertiary);
+        transition:
+          opacity 0.15s,
+          background 0.1s,
+          color 0.1s;
+      }
+      .grid-obj:hover .grid-del {
+        opacity: 1;
+      }
+      .grid-del:hover {
+        background: rgba(0, 0, 0, 0.09);
+        color: var(--text);
+      }
+
+      .chart-card {
+        background: var(--surface);
+        border: 2px solid transparent;
+        border-radius: 12px;
+        padding: 14px 18px 18px;
+        display: inline-block;
+        min-width: min-content;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+        cursor: default;
+      }
+      .chart-card.focused {
+        border-color: var(--accent);
+        box-shadow:
+          0 0 0 4px rgba(217, 119, 6, 0.1),
+          0 2px 12px rgba(0, 0, 0, 0.09);
+      }
+
+      /* ── Chart cells ─────────────────────────────────────────────────── */
+      .stitch-cell {
+        width: var(--cell);
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        border-width: 1px;
+        border-style: solid;
+        border-radius: 4px;
+        user-select: none;
+        flex-shrink: 0;
+        transition:
+          filter 0.08s,
+          transform 0.06s;
+      }
+      .stitch-cell.editable {
+        cursor: pointer;
+      }
+      .stitch-cell.editable:hover {
+        filter: brightness(0.87);
+        transform: scale(1.07);
+      }
+      .stitch-cell.selected {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px var(--accent);
+        position: relative;
+        z-index: 1;
+      }
+
+      .col-label {
+        width: var(--cell);
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .row-wrap {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 4px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: background 0.1s;
+      }
+      .row-wrap:hover {
+        background: #f5f5f3;
+      }
+      .row-wrap.active {
+        background: #fef9c3;
+      }
+      .row-wrap.count-warning {
+        background: #fff7ed;
+      }
+      .row-wrap.count-warning.active {
+        background: #fef3c7;
+      }
+
+      .sidebar-cell {
+        width: 28px;
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+        border-radius: 4px;
+        color: var(--text-secondary);
+      }
+      .row-wrap.active .sidebar-cell {
+        color: #92400e;
+      }
+
+      .dir-arrow {
+        width: 28px;
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+        gap: 2px;
+      }
+
+      /* ── New cell types ──────────────────────────────────────────────── */
+      .stitch-marker {
+        width: 4px;
+        height: calc(var(--cell) - 6px);
+        background: #334155;
+        border-radius: 2px;
+        flex-shrink: 0;
+        align-self: center;
+      }
+      .bor-indicator {
+        width: 28px;
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        color: #7c3aed;
+        background: #ede9fe;
+        border-radius: 4px;
+        border: 1.5px solid #a78bfa;
+        flex-shrink: 0;
+      }
+      .turn-indicator {
+        width: var(--cell);
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        color: #b45309;
+        background: #fef3c7;
+        border-radius: 4px;
+        border: 1.5px dashed #f59e0b;
+        flex-shrink: 0;
+      }
+      .collapse-cell {
+        width: var(--cell);
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: var(--text-tertiary);
+        background: var(--bg);
+        border-radius: 4px;
+        border: 1px dashed var(--border);
+        flex-shrink: 0;
+        cursor: default;
+      }
+      .unknown-cell {
+        background: #fff1f2 !important;
+        border-color: #fca5a5 !important;
+        color: #dc2626 !important;
+        cursor: help;
+      }
+      .flip-indicator {
+        width: 14px;
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        color: #6b7280;
+        flex-shrink: 0;
+      }
+      .repeat-badge {
+        font-size: 9px;
+        font-weight: 600;
+        background: #fef3c7;
+        color: #92400e;
+        border-radius: 3px;
+        padding: 1px 3px;
+        line-height: 1.4;
+      }
+      .repeat-ellipsis-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 4px;
+        cursor: default;
+        user-select: none;
+      }
+      .repeat-ellipsis-dots {
+        font-size: 18px;
+        line-height: 1;
+        color: var(--text-tertiary);
+        margin-left: 92px;
+        letter-spacing: 2px;
+      }
+      .repeat-ellipsis-label {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        font-style: italic;
+      }
+      .count-badge {
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        font-variant-numeric: tabular-nums;
+      }
+      .count-badge.warn {
+        color: #b45309;
+      }
+
+      /* ── Zoom controls ───────────────────────────────────────────────── */
+      #zoomBar {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 3px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 5;
+        user-select: none;
+      }
+      .z-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: var(--text-secondary);
+        transition: background 0.1s;
+      }
+      .z-btn:hover {
+        background: var(--bg);
+      }
+      #zoomLabel {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        min-width: 40px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .z-sep {
+        width: 1px;
+        height: 16px;
+        background: var(--border);
+        margin: 0 2px;
+      }
+      .z-fit {
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: background 0.1s;
+      }
+      .z-fit:hover {
+        background: var(--bg);
+      }
+
+      /* ── Right panel ─────────────────────────────────────────────────── */
+      #rightPanel {
+        width: var(--panel-w);
+        flex-shrink: 0;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+      }
+      #rightPanel.collapsed {
+        width: 0;
+        border-left-color: transparent;
+      }
+
+      #panelInner {
+        width: var(--panel-w);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: opacity 0.16s ease;
+      }
+      #rightPanel.collapsed #panelInner {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #panelHeader {
+        height: var(--header-h);
+        border-bottom: 1px solid var(--border-soft);
+        display: flex;
+        align-items: center;
+        padding: 0 16px 0 20px;
+        flex-shrink: 0;
+        gap: 8px;
+      }
+      #panelTitle {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      #panelCloseBtn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        transition:
+          background 0.1s,
+          color 0.1s;
+      }
+      #panelCloseBtn:hover {
+        background: var(--bg);
+        color: var(--text-secondary);
+      }
+
+      #panelBody {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      /* Panel open tab */
+      #panelOpenBtn {
+        position: fixed;
+        right: 0;
+        top: calc(var(--header-h) + 20px);
+        z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      #panelOpenBtn.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #panelOpenBtnInner {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px 8px 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        cursor: pointer;
+        color: var(--text-tertiary);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        transform: translateX(-100%);
+        transition:
+          color 0.1s,
+          background 0.1s;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04);
+      }
+      #panelOpenBtnInner:hover {
+        background: var(--bg);
+        color: var(--text-secondary);
+      }
+
+      /* Panel sections */
+      .panel-section {
+        margin-bottom: 20px;
+      }
+      .panel-section + .panel-section {
+        padding-top: 20px;
+        border-top: 1px solid var(--border-soft);
+      }
+      .row-meta {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        letter-spacing: 0.03em;
+        margin-bottom: 6px;
+      }
+      #rowInstruction {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--text);
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .source-block {
+        margin-top: 10px;
+        padding: 8px 10px;
+        background: var(--bg);
+        border: 1px solid var(--border-soft);
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+      }
+      .source-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        margin-bottom: 4px;
+      }
+
+      .field-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        margin-bottom: 6px;
+        display: block;
+      }
+      textarea {
+        width: 100%;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        color: var(--text);
+        background: var(--bg);
+        resize: none;
+        font-family: inherit;
+        line-height: 1.5;
+        outline: none;
+        transition: border-color 0.12s;
+      }
+      textarea::placeholder {
+        color: var(--text-tertiary);
+      }
+      textarea:focus {
+        border-color: #a8a8a4;
+        background: var(--surface);
+      }
+
+      /* Meta grid */
+      .meta-table {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 10px;
+        font-size: 12px;
+      }
+      .meta-key {
+        color: var(--text-tertiary);
+        font-weight: 500;
+        align-self: start;
+        padding-top: 1px;
+      }
+      .meta-val {
+        color: var(--text);
+        line-height: 1.4;
+      }
+
+      /* Legend */
+      #legend {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .legend-item .stitch-cell {
+        width: 26px;
+        height: 26px;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      .legend-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        min-width: 36px;
+      }
+      .legend-desc {
+        font-size: 12px;
+        color: var(--text-tertiary);
+      }
+
+      /* Repeat */
+      .repeat-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .repeat-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: var(--text-secondary);
+        transition: background 0.1s;
+      }
+      .repeat-btn:hover {
+        background: var(--bg);
+      }
+      .repeat-val {
+        font-size: 22px;
+        font-weight: 700;
+        min-width: 28px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .repeat-of {
+        font-size: 13px;
+        color: var(--text-tertiary);
+      }
+      .repeat-reset {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .repeat-reset:hover {
+        color: var(--text-secondary);
+      }
+
+      /* Edit controls */
+      .edit-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #92400e;
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 100px;
+        padding: 2px 8px;
+        margin-bottom: 10px;
+      }
+      .edit-btn {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .edit-btn:hover {
+        background: var(--bg);
+      }
+      .edit-btn.danger {
+        border-color: #fca5a5;
+        color: #ef4444;
+      }
+      .edit-btn.danger:hover {
+        background: #fff1f2;
+      }
+      .edit-hint {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Topbar -->
+    <div id="topbar">
+      <div id="topbar-title">
+        <h1 id="topbarTitle">Knitting Pattern Tracker</h1>
+        <p id="topbarSubtitle">Loading pattern…</p>
+      </div>
+      <div id="topbar-right">
+        <div class="row-badge">
+          <span class="row-badge-label">Active Row</span>
+          <span id="currentRowDisplay">1</span>
+          <span class="row-badge-hint">↑↓ to navigate</span>
+        </div>
+        <button id="editModeBtn" onclick="toggleEditMode()">
+          Edit Mode: OFF
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="content">
+      <!-- Infinite canvas -->
+      <div id="canvasWrap">
+        <div id="canvas"></div>
+
+        <div id="zoomBar">
+          <button class="z-btn" onclick="zoomStep(-1)" title="Zoom out">
+            −
+          </button>
+          <span id="zoomLabel">100%</span>
+          <button class="z-btn" onclick="zoomStep(1)" title="Zoom in">+</button>
+          <div class="z-sep"></div>
+          <button class="z-fit" onclick="fitToView()">Fit</button>
+        </div>
+      </div>
+
+      <!-- Panel re-open tab -->
+      <div id="panelOpenBtn" onclick="openPanel()">
+        <div id="panelOpenBtnInner">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M10 3L5 8L10 13"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Row Details
+        </div>
+      </div>
+
+      <!-- Right panel -->
+      <div id="rightPanel">
+        <div id="panelInner">
+          <div id="panelHeader">
+            <span id="panelTitle">Row Details</span>
+            <button id="panelCloseBtn" onclick="closePanel()" title="Close">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M6 3L11 8L6 13"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <div id="panelBody">
+            <div class="panel-section" id="metaSection">
+              <div class="field-label">Pattern Info</div>
+              <div class="meta-table" id="metaContent"></div>
+            </div>
+
+            <div class="panel-section">
+              <div class="row-meta" id="rowSideLabel"></div>
+              <div id="rowInstruction"></div>
+              <div id="rowSourceWrap" style="display: none">
+                <div class="source-label" style="margin-top: 10px">
+                  Original text
+                </div>
+                <div class="source-block" id="rowSource"></div>
+              </div>
+            </div>
+
+            <div class="panel-section">
+              <label class="field-label" for="notesInput"
+                >Notes &middot; row <span id="notesRowLabel">1</span></label
+              >
+              <textarea
+                id="notesInput"
+                rows="4"
+                placeholder="Add notes for this row…"
+                oninput="saveNote()"
+              ></textarea>
+            </div>
+
+            <div class="panel-section" id="repeatSection"></div>
+
+            <div class="panel-section">
+              <div class="field-label">Legend</div>
+              <div id="legend"></div>
+            </div>
+
+            <div class="panel-section hidden" id="editControls">
+              <div class="edit-pill">✦ Edit mode</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                <button class="edit-btn" onclick="addStitch()">+ stitch</button>
+                <button class="edit-btn" onclick="removeStitch()">
+                  − stitch
+                </button>
+                <button class="edit-btn" onclick="addRowBelow()">
+                  + row below
+                </button>
+                <button class="edit-btn danger" onclick="deleteCurrentRow()">
+                  Delete row
+                </button>
+              </div>
+              <div class="edit-hint">
+                Click any cell to cycle its stitch type.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── Pattern data ──────────────────────────────────────────────────────────
+      const PATTERN_DATA = `
+@title: Test Raglan
+@needle: 5mm
+@gauge: 20st x 28rows
+
+#YOKE
+@cast_on: 100
+R1: K24 | K1 | K49 | K1 | K25
+@source: 右后片:24下, 放记号圈,1下,放记号圈, 前片:49下, 放记号圈,1下,放记号圈, 左后片:25下
+R2: K24,M1R | K1 | M1L,K49,M1R | K1 | M1L,K25 [+4]
+@source: 右后片:下针织到记号圈前,M1R, 滑过记号圈,1下,滑过记号圈, 前片:M1L,下针织到记号圈前,M1R...
+R3(WS): K24,M1R | K1 | M1L,K2,turn [+2]
+@source: 短行1:右后片:下针织到记号圈前,M1R,滑过记号圈,1下,滑过记号圈,M1L,2下,翻面
+R4(WS): turn,DS,P_to_BOR,P_to_M,M1Lp | P1 | M1Rp,P2,turn [+2]
+@source: 短行2:DS,上针织到BOR,左后片:上针织到记号圈前,M1L-p,滑过记号圈,1上,滑过记号圈,M1R-p,2上,翻面
+REPEAT R3-R4: x5
+`;
+
+      // ── Stitch config ─────────────────────────────────────────────────────────
+      const SC = {
+        K: {
+          symbol: "·",
+          label: "K",
+          desc: "Knit",
+          bg: "#f8fafc",
+          border: "#cbd5e1",
+          text: "#334155",
+        },
+        P: {
+          symbol: "–",
+          label: "P",
+          desc: "Purl",
+          bg: "#fffbeb",
+          border: "#f59e0b",
+          text: "#92400e",
+        },
+        YO: {
+          symbol: "O",
+          label: "YO",
+          desc: "Yarn Over",
+          bg: "#f0fdf4",
+          border: "#6ee7b7",
+          text: "#065f46",
+        },
+        K2tog: {
+          symbol: "/",
+          label: "K2tog",
+          desc: "Knit 2 Together",
+          bg: "#fff1f2",
+          border: "#fda4af",
+          text: "#9f1239",
+        },
+        SSK: {
+          symbol: "\\",
+          label: "SSK",
+          desc: "Slip Slip Knit",
+          bg: "#faf5ff",
+          border: "#c4b5fd",
+          text: "#5b21b6",
+        },
+        SL: {
+          symbol: "v",
+          label: "Sl",
+          desc: "Slip",
+          bg: "#eff6ff",
+          border: "#93c5fd",
+          text: "#1e40af",
+        },
+        M1R: {
+          symbol: "+",
+          label: "M1R",
+          desc: "Make 1 Right",
+          bg: "#f0fdf4",
+          border: "#4ade80",
+          text: "#14532d",
+        },
+        M1L: {
+          symbol: "+",
+          label: "M1L",
+          desc: "Make 1 Left",
+          bg: "#f0fdf4",
+          border: "#4ade80",
+          text: "#14532d",
+        },
+        M1Rp: {
+          symbol: "+",
+          label: "M1Rp",
+          desc: "Make 1 Right Purl",
+          bg: "#fefce8",
+          border: "#fbbf24",
+          text: "#78350f",
+        },
+        M1Lp: {
+          symbol: "+",
+          label: "M1Lp",
+          desc: "Make 1 Left Purl",
+          bg: "#fefce8",
+          border: "#fbbf24",
+          text: "#78350f",
+        },
+        KFB: {
+          symbol: "+",
+          label: "KFB",
+          desc: "Knit Front & Back",
+          bg: "#f0fdf4",
+          border: "#4ade80",
+          text: "#14532d",
+        },
+        DS: {
+          symbol: "DS",
+          label: "DS",
+          desc: "Double Stitch",
+          bg: "#fdf4ff",
+          border: "#e879f9",
+          text: "#701a75",
+        },
+      };
+      const STITCH_TYPES = Object.keys(SC);
+
+      // ── Parser ────────────────────────────────────────────────────────────────
+      function parseToken(raw) {
+        const s = raw.trim();
+        if (!s) return null;
+        if (s === "BOR") return { kind: "BOR" };
+        if (s === "turn") return { kind: "turn" };
+        if (s === "YO")
+          return { kind: "stitch", type: "YO", count: 1, delta: 1 };
+        if (s === "K2tog")
+          return { kind: "stitch", type: "K2tog", count: 1, delta: -1 };
+        if (s === "SSK")
+          return { kind: "stitch", type: "SSK", count: 1, delta: -1 };
+        if (s === "KFB")
+          return { kind: "stitch", type: "KFB", count: 1, delta: 1 };
+        if (s === "M1R")
+          return { kind: "stitch", type: "M1R", count: 1, delta: 1 };
+        if (s === "M1L")
+          return { kind: "stitch", type: "M1L", count: 1, delta: 1 };
+        if (s === "M1Rp")
+          return { kind: "stitch", type: "M1Rp", count: 1, delta: 1 };
+        if (s === "M1Lp")
+          return { kind: "stitch", type: "M1Lp", count: 1, delta: 1 };
+        if (s === "DS")
+          return { kind: "stitch", type: "DS", count: 1, delta: 0 };
+        if (s === "SL")
+          return { kind: "stitch", type: "SL", count: 1, delta: 0 };
+        const km = s.match(/^K(\d+)$/);
+        if (km)
+          return {
+            kind: "stitch",
+            type: "K",
+            count: parseInt(km[1]),
+            delta: 0,
+          };
+        const pm = s.match(/^P(\d+)$/);
+        if (pm)
+          return {
+            kind: "stitch",
+            type: "P",
+            count: parseInt(pm[1]),
+            delta: 0,
+          };
+        return { kind: "unknown", raw: s };
+      }
+
+      function parseRow(line) {
+        const hm = line.match(/^R(\d+)(\(WS\))?:\s*/);
+        if (!hm) return null;
+        const num = parseInt(hm[1]);
+        const isWS = !!hm[2];
+        let rest = line.slice(hm[0].length).trim();
+
+        let netChange = null;
+        const chm = rest.match(/\[([+\-]\d+)\]\s*$/);
+        if (chm) {
+          netChange = parseInt(chm[1]);
+          rest = rest.slice(0, rest.lastIndexOf("[")).trim();
+        }
+
+        const tokens = [];
+        rest.split("|").forEach((seg, si) => {
+          if (si > 0) tokens.push({ kind: "marker" });
+          seg.split(",").forEach((p) => {
+            const t = parseToken(p.trim());
+            if (t) tokens.push(t);
+          });
+        });
+
+        return {
+          num,
+          isWS,
+          tokens,
+          netChange,
+          source: null,
+          originalLine: line.trim(),
+        };
+      }
+
+      function parseKnitPattern(text) {
+        const lines = text
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l);
+        const meta = {};
+        const sections = [];
+        let cur = null;
+        let lastRowIdx = -1;
+
+        for (const line of lines) {
+          if (line.startsWith("#")) {
+            cur = {
+              name: line.slice(1).trim(),
+              castOn: 0,
+              rows: [],
+              repeats: [],
+            };
+            sections.push(cur);
+            lastRowIdx = -1;
+          } else if (!cur && line.startsWith("@")) {
+            const m = line.match(/^@(\w+):\s*(.+)/);
+            if (m) meta[m[1]] = m[2];
+          } else if (cur && line.startsWith("@cast_on:")) {
+            cur.castOn = parseInt(line.split(":")[1].trim());
+          } else if (cur && line.startsWith("@source:")) {
+            if (lastRowIdx >= 0)
+              cur.rows[lastRowIdx].source = line
+                .slice("@source:".length)
+                .trim();
+          } else if (cur && /^R\d+(\(WS\))?:/.test(line)) {
+            const row = parseRow(line);
+            if (row) {
+              cur.rows.push(row);
+              lastRowIdx = cur.rows.length - 1;
+            }
+          } else if (cur && /^REPEAT R\d+-R\d+:\s*x\d+/.test(line)) {
+            const m = line.match(/^REPEAT R(\d+)-R(\d+):\s*x(\d+)/);
+            if (m)
+              cur.repeats.push({
+                start: parseInt(m[1]),
+                end: parseInt(m[2]),
+                count: parseInt(m[3]),
+              });
+          }
+        }
+        return { meta, sections };
+      }
+
+      // ── Cell expansion and collapse ───────────────────────────────────────────
+      function expandTokens(tokens) {
+        const cells = [];
+        for (const t of tokens) {
+          if (t.kind === "marker" || t.kind === "BOR" || t.kind === "turn") {
+            cells.push({ kind: t.kind });
+          } else if (t.kind === "unknown") {
+            cells.push({ kind: "unknown", raw: t.raw });
+          } else if (t.kind === "stitch") {
+            for (let i = 0; i < (t.count || 1); i++)
+              cells.push({ kind: "stitch", type: t.type });
+          }
+        }
+        return cells;
+      }
+
+      function applyCollapse(cells) {
+        // Collapse runs of 10+ identical stitches: keep 2 at each end, elide middle
+        const out = [];
+        let i = 0;
+        while (i < cells.length) {
+          const c = cells[i];
+          if (c.kind !== "stitch") {
+            out.push(c);
+            i++;
+            continue;
+          }
+          let j = i;
+          while (
+            j < cells.length &&
+            cells[j].kind === "stitch" &&
+            cells[j].type === c.type
+          )
+            j++;
+          const len = j - i;
+          if (len > 10) {
+            out.push(cells[i], cells[i + 1]);
+            out.push({ kind: "collapse", count: len - 4, type: c.type });
+            out.push(cells[j - 2], cells[j - 1]);
+          } else {
+            for (let k = i; k < j; k++) out.push(cells[k]);
+          }
+          i = j;
+        }
+        return out;
+      }
+
+      // ── Build render rows ─────────────────────────────────────────────────────
+      function makeRenderRow(row, stitchCount, repeatInfo) {
+        const cells = applyCollapse(expandTokens(row.tokens));
+
+        let computedDelta = 0;
+        let hasUnknown = false;
+        row.tokens.forEach((t) => {
+          if (t.kind === "unknown") hasUnknown = true;
+          else if (t.kind === "stitch")
+            computedDelta += (t.delta || 0) * (t.count || 1);
+        });
+        const countValid =
+          row.netChange === null || hasUnknown
+            ? null
+            : computedDelta === row.netChange;
+
+        return {
+          type: "row",
+          rowNum: row.num,
+          isWS: row.isWS,
+          cells,
+          source: row.source,
+          originalLine: row.originalLine,
+          netChange: row.netChange,
+          stitchCount,
+          countValid,
+          repeatInfo,
+          // Back-compat fields used by renderSidePanel/renderRepeat:
+          num: row.num,
+          side: row.isWS ? "WS" : "RS",
+          isRepeat: !!repeatInfo,
+          repeatTotal: repeatInfo ? repeatInfo.total : 0,
+        };
+      }
+
+      function buildRenderRows(section) {
+        const renderRows = [];
+        let count = section.castOn;
+        const repeatForRow = {};
+        section.repeats.forEach((rep) => {
+          for (let n = rep.start; n <= rep.end; n++) repeatForRow[n] = rep;
+        });
+        const doneRepeats = new Set();
+
+        for (const row of section.rows) {
+          const rep = repeatForRow[row.num];
+          if (rep) {
+            const key = `${rep.start}-${rep.end}`;
+            if (doneRepeats.has(key)) continue;
+            doneRepeats.add(key);
+
+            const repRows = section.rows.filter(
+              (r) => r.num >= rep.start && r.num <= rep.end,
+            );
+            const repDelta = repRows.reduce(
+              (s, r) => s + (r.netChange || 0),
+              0,
+            );
+
+            // First iteration
+            repRows.forEach((r) => {
+              renderRows.push(
+                makeRenderRow(r, count, { iter: 1, total: rep.count }),
+              );
+              count += r.netChange || 0;
+            });
+
+            // Ellipsis for skipped middle iterations
+            if (rep.count > 2) {
+              renderRows.push({
+                type: "repeat-ellipsis",
+                label: `Repeats 2–${rep.count - 1} of ${rep.count}`,
+              });
+              count += repDelta * (rep.count - 2);
+            }
+
+            // Final iteration
+            if (rep.count > 1) {
+              repRows.forEach((r) => {
+                renderRows.push(
+                  makeRenderRow(r, count, {
+                    iter: rep.count,
+                    total: rep.count,
+                  }),
+                );
+                count += r.netChange || 0;
+              });
+            }
+          } else {
+            renderRows.push(makeRenderRow(row, count, null));
+            count += row.netChange || 0;
+          }
+        }
+        return renderRows;
+      }
+
+      function buildGridsFromParsed(parsed) {
+        return parsed.sections.map((section, i) => ({
+          id: `g${i}`,
+          label: section.name,
+          x: 60 + i * 700,
+          y: 60,
+          activeRow: 0,
+          castOn: section.castOn,
+          pattern: buildRenderRows(section),
+          meta: parsed.meta,
+        }));
+      }
+
+      // ── Init grids from PATTERN_DATA ──────────────────────────────────────────
+      const _parsed = parseKnitPattern(PATTERN_DATA);
+      const grids = buildGridsFromParsed(_parsed);
+
+      // ── State ─────────────────────────────────────────────────────────────────
+      let focusedGrid = 0;
+      let editMode = false;
+      let panelOpen = true;
+      let selectedCell = null;
+      let notes = {};
+      let repeatCounters = {};
+
+      // ── Canvas state ──────────────────────────────────────────────────────────
+      let cx = 0,
+        cy = 0,
+        cz = 1;
+      let isPanning = false,
+        panStart = { x: 0, y: 0 },
+        panOrigin = { x: 0, y: 0 };
+
+      const canvasWrap = document.getElementById("canvasWrap");
+      const canvasEl = document.getElementById("canvas");
+
+      function applyTransform() {
+        canvasEl.style.transform = `translate(${cx}px,${cy}px) scale(${cz})`;
+        const sp = 24 * cz;
+        const ox = ((cx % sp) + sp) % sp;
+        const oy = ((cy % sp) + sp) % sp;
+        canvasWrap.style.backgroundSize = `${sp}px ${sp}px`;
+        canvasWrap.style.backgroundPosition = `${ox}px ${oy}px`;
+        document.getElementById("zoomLabel").textContent =
+          Math.round(cz * 100) + "%";
+      }
+
+      // ── Canvas events ─────────────────────────────────────────────────────────
+      canvasWrap.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest(".grid-obj")) return;
+        if (selectedCell) {
+          selectedCell = null;
+          renderAllGrids();
+        }
+        isPanning = true;
+        panStart = { x: e.clientX, y: e.clientY };
+        panOrigin = { x: cx, y: cy };
+        canvasWrap.classList.add("panning");
+        e.preventDefault();
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isPanning) return;
+        cx = panOrigin.x + e.clientX - panStart.x;
+        cy = panOrigin.y + e.clientY - panStart.y;
+        applyTransform();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (isPanning) {
+          isPanning = false;
+          canvasWrap.classList.remove("panning");
+        }
+      });
+
+      canvasWrap.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          if (e.ctrlKey) {
+            zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.013));
+          } else if (
+            e.deltaMode === 1 ||
+            (!e.deltaX && Math.abs(e.deltaY) >= 50)
+          ) {
+            zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+          } else {
+            cx -= e.deltaX;
+            cy -= e.deltaY;
+            applyTransform();
+          }
+        },
+        { passive: false },
+      );
+
+      function zoomAt(clientX, clientY, factor) {
+        const newZ = Math.max(0.08, Math.min(5, cz * factor));
+        const rect = canvasWrap.getBoundingClientRect();
+        const px = clientX - rect.left;
+        const py = clientY - rect.top;
+        cx = px - (px - cx) * (newZ / cz);
+        cy = py - (py - cy) * (newZ / cz);
+        cz = newZ;
+        applyTransform();
+      }
+
+      function zoomStep(dir) {
+        const rect = canvasWrap.getBoundingClientRect();
+        zoomAt(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+          dir > 0 ? 1.2 : 1 / 1.2,
+        );
+      }
+
+      function layoutGrids() {
+        const GAP = 100,
+          START = 60,
+          ROW_MAX_W = 3200;
+        const els = Array.from(document.querySelectorAll(".grid-obj"));
+        if (!els.length) return;
+        let x = START,
+          y = START,
+          rowH = 0;
+        els.forEach((el, i) => {
+          const w = el.offsetWidth,
+            h = el.offsetHeight;
+          if (i > 0 && x + w > ROW_MAX_W) {
+            x = START;
+            y += rowH + GAP;
+            rowH = 0;
+          }
+          grids[i].x = x;
+          grids[i].y = y;
+          x += w + GAP;
+          rowH = Math.max(rowH, h);
+        });
+        renderAllGrids();
+        fitToView();
+      }
+
+      function fitToView() {
+        const els = document.querySelectorAll(".grid-obj");
+        if (!els.length) return;
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        els.forEach((el, i) => {
+          const g = grids[i];
+          minX = Math.min(minX, g.x);
+          minY = Math.min(minY, g.y);
+          maxX = Math.max(maxX, g.x + el.offsetWidth);
+          maxY = Math.max(maxY, g.y + el.offsetHeight);
+        });
+        const pad = 64;
+        const cw = canvasWrap.offsetWidth;
+        const ch = canvasWrap.offsetHeight;
+        const bbW = maxX - minX,
+          bbH = maxY - minY;
+        cz = Math.min((cw - pad * 2) / bbW, (ch - pad * 2) / bbH, 2);
+        cx = cw / 2 - (minX + bbW / 2) * cz;
+        cy = ch / 2 - (minY + bbH / 2) * cz;
+        applyTransform();
+      }
+
+      // ── Cell rendering ────────────────────────────────────────────────────────
+      function renderCellHTML(cell) {
+        switch (cell.kind) {
+          case "marker":
+            return `<div class="stitch-marker"></div>`;
+          case "BOR":
+            return `<div class="bor-indicator" title="Beginning of Round">BOR</div>`;
+          case "turn":
+            return `<div class="turn-indicator" title="Short Row Turn">↩</div>`;
+          case "collapse":
+            return `<div class="collapse-cell" title="${cell.count + 4} ${cell.type} stitches (${cell.count} collapsed)">···</div>`;
+          case "unknown":
+            return `<div class="stitch-cell unknown-cell" title="Unknown stitch: ${cell.raw}">?</div>`;
+          case "stitch": {
+            const cfg = SC[cell.type];
+            if (!cfg)
+              return `<div class="stitch-cell unknown-cell" title="Unknown: ${cell.type}">?</div>`;
+            const isInc = ["M1R", "M1L", "M1Rp", "M1Lp", "KFB"].includes(
+              cell.type,
+            );
+            const display = isInc
+              ? `<span style="font-size:7px;line-height:1;font-weight:800;letter-spacing:-.5px">${cell.type}</span>`
+              : cfg.symbol;
+            return `<div class="stitch-cell" style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};" title="${cfg.desc}">${display}</div>`;
+          }
+          default:
+            return "";
+        }
+      }
+
+      // ── Grid rendering ────────────────────────────────────────────────────────
+      function renderAllGrids() {
+        canvasEl.innerHTML = grids
+          .map((g, gi) => renderGridHTML(g, gi))
+          .join("");
+      }
+
+      function renderGridHTML(g, gi) {
+        const focused = gi === focusedGrid;
+        let rowsHtml = "";
+
+        g.pattern.forEach((row, ri) => {
+          if (row.type === "repeat-ellipsis") {
+            rowsHtml += `<div class="repeat-ellipsis-row">
+        <div class="repeat-ellipsis-dots">⋮</div>
+        <div class="repeat-ellipsis-label">${row.label}</div>
+      </div>`;
+            return;
+          }
+
+          const active = ri === g.activeRow;
+          const isWS = row.isWS;
+          const cells = isWS ? [...row.cells].reverse() : row.cells;
+
+          // Count badge: show stitchCount, net change, warn if mismatch
+          const delta =
+            row.netChange !== null
+              ? row.netChange >= 0
+                ? `+${row.netChange}`
+                : `${row.netChange}`
+              : "";
+          const warnClass = row.countValid === false ? " warn" : "";
+          const countBadge = `<span class="count-badge${warnClass}" title="${row.countValid === false ? "Count mismatch!" : `${row.stitchCount} sts`}">${row.stitchCount}${delta}</span>`;
+
+          // Repeat badge
+          const repBadge = row.repeatInfo
+            ? `<span class="repeat-badge">${row.repeatInfo.iter}/${row.repeatInfo.total}</span>`
+            : "";
+
+          // Direction arrow
+          const arrow = isWS ? "→" : "←";
+
+          let cellsHtml = "";
+          if (isWS)
+            cellsHtml += `<div class="flip-indicator" title="WS row: read right to left">◁</div>`;
+          cells.forEach((cell) => {
+            cellsHtml += renderCellHTML(cell);
+          });
+          if (isWS)
+            cellsHtml += `<div class="flip-indicator" title="WS row: read right to left">◁</div>`;
+
+          const wrapClass = `row-wrap${active ? " active" : ""}${row.countValid === false ? " count-warning" : ""}`;
+          rowsHtml += `<div class="${wrapClass}" onclick="selectRow(${gi},${ri})">
+      <div class="sidebar-cell">${row.rowNum}</div>
+      <div class="sidebar-cell" style="font-size:10px;">${countBadge}</div>
+      <div class="dir-arrow">${arrow}${repBadge}</div>
+      ${cellsHtml}
+    </div>`;
+        });
+
+        return `
+    <div class="grid-obj" style="left:${g.x}px;top:${g.y}px;" data-gi="${gi}" onclick="focusGrid(${gi})">
+      <div class="grid-label">
+        <span>${g.label}</span>
+        <button class="grid-del" title="Delete grid" onclick="event.stopPropagation();deleteGrid(${gi})">×</button>
+      </div>
+      <div class="chart-card${focused ? " focused" : ""}">
+        <div>${rowsHtml}</div>
+      </div>
+    </div>`;
+      }
+
+      // ── Side panel rendering ──────────────────────────────────────────────────
+      function renderSidePanel() {
+        const g = grids[focusedGrid];
+        // Find active selectable row (skip ellipsis rows)
+        let row = g.pattern[g.activeRow];
+        while (row && row.type === "repeat-ellipsis") {
+          g.activeRow = Math.min(g.activeRow + 1, g.pattern.length - 1);
+          row = g.pattern[g.activeRow];
+        }
+        if (!row) return;
+
+        document.getElementById("currentRowDisplay").textContent = row.rowNum;
+        document.getElementById("panelTitle").textContent = `Row ${row.rowNum}`;
+
+        const stLabel = `R${row.rowNum} · ${row.isWS ? "WS (wrong side)" : "RS (right side)"} · ${row.stitchCount} sts`;
+        document.getElementById("rowSideLabel").textContent = stLabel;
+        document.getElementById("rowInstruction").textContent =
+          row.originalLine || "";
+
+        const sw = document.getElementById("rowSourceWrap");
+        if (row.source) {
+          sw.style.display = "";
+          document.getElementById("rowSource").textContent = row.source;
+        } else {
+          sw.style.display = "none";
+        }
+
+        document.getElementById("notesRowLabel").textContent = row.rowNum;
+        document.getElementById("notesInput").value =
+          notes[`${focusedGrid}_${g.activeRow}`] || "";
+
+        renderRepeat(row);
+      }
+
+      function renderRepeat(row) {
+        const el = document.getElementById("repeatSection");
+        if (!row || !row.isRepeat) {
+          el.innerHTML = "";
+          return;
+        }
+        const key = `${focusedGrid}_${grids[focusedGrid].activeRow}`;
+        if (!(key in repeatCounters))
+          repeatCounters[key] = row.repeatInfo ? row.repeatInfo.iter : 1;
+        const cur = repeatCounters[key],
+          tot = row.repeatTotal;
+        el.innerHTML = `
+    <label class="field-label">Repeat count</label>
+    <div class="repeat-row">
+      <button class="repeat-btn" onclick="changeRepeat(-1)">−</button>
+      <span class="repeat-val">${cur}</span>
+      <span class="repeat-of">/ ${tot}</span>
+      <button class="repeat-btn" onclick="changeRepeat(1)">+</button>
+    </div>
+    <button class="repeat-reset" onclick="resetRepeat()">reset</button>`;
+      }
+
+      function renderLegend() {
+        document.getElementById("legend").innerHTML = STITCH_TYPES.map((st) => {
+          const c = SC[st];
+          return `<div class="legend-item">
+      <div class="stitch-cell" style="background:${c.bg};border-color:${c.border};color:${c.text};">${c.symbol}</div>
+      <span class="legend-name">${c.label}</span>
+      <span class="legend-desc">${c.desc}</span>
+    </div>`;
+        }).join("");
+      }
+
+      function renderMeta() {
+        const meta = (grids[0] && grids[0].meta) || _parsed.meta;
+        const keys = ["title", "yarn", "needle", "gauge", "notes"];
+        const labels = {
+          title: "Title",
+          yarn: "Yarn",
+          needle: "Needle",
+          gauge: "Gauge",
+          notes: "Notes",
+        };
+        const rows = keys
+          .filter((k) => meta[k])
+          .map(
+            (k) =>
+              `<div class="meta-key">${labels[k]}</div><div class="meta-val">${meta[k]}</div>`,
+          )
+          .join("");
+
+        const section = document.getElementById("metaSection");
+        if (!rows) {
+          section.style.display = "none";
+          return;
+        }
+        document.getElementById("metaContent").innerHTML = rows;
+
+        // Update topbar
+        if (meta.title) {
+          document.getElementById("topbarTitle").textContent = meta.title;
+          const parts = [meta.needle, meta.gauge].filter(Boolean);
+          document.getElementById("topbarSubtitle").textContent =
+            parts.join(" · ") || "";
+        }
+      }
+
+      function render() {
+        renderAllGrids();
+        renderSidePanel();
+      }
+
+      // ── Actions ───────────────────────────────────────────────────────────────
+      function selectCell(gi, ri, si) {
+        if (!editMode) return;
+        selectedCell = { gi, ri, si };
+        focusedGrid = gi;
+        grids[gi].activeRow = ri;
+        renderSidePanel();
+        renderAllGrids();
+      }
+
+      function deleteGrid(gi) {
+        if (grids.length === 1) return;
+        grids.splice(gi, 1);
+        focusedGrid = Math.min(focusedGrid, grids.length - 1);
+        render();
+      }
+
+      function focusGrid(gi) {
+        if (focusedGrid === gi) return;
+        focusedGrid = gi;
+        render();
+      }
+
+      function selectRow(gi, ri) {
+        const row = grids[gi].pattern[ri];
+        if (row && row.type === "repeat-ellipsis") return;
+        selectedCell = null;
+        focusedGrid = gi;
+        grids[gi].activeRow = ri;
+        render();
+      }
+
+      function toggleEditMode() {
+        editMode = !editMode;
+        if (!editMode) {
+          selectedCell = null;
+          renderAllGrids();
+        }
+        const btn = document.getElementById("editModeBtn");
+        btn.textContent = `Edit Mode: ${editMode ? "ON" : "OFF"}`;
+        btn.classList.toggle("active", editMode);
+        document
+          .getElementById("editControls")
+          .classList.toggle("hidden", !editMode);
+        renderAllGrids();
+      }
+
+      function saveNote() {
+        notes[`${focusedGrid}_${grids[focusedGrid].activeRow}`] =
+          document.getElementById("notesInput").value;
+      }
+
+      function changeRepeat(delta) {
+        const g = grids[focusedGrid];
+        const row = g.pattern[g.activeRow];
+        if (!row || !row.isRepeat) return;
+        const key = `${focusedGrid}_${g.activeRow}`;
+        if (!(key in repeatCounters)) repeatCounters[key] = 1;
+        repeatCounters[key] = Math.max(
+          1,
+          Math.min(repeatCounters[key] + delta, row.repeatTotal),
+        );
+        renderRepeat(row);
+      }
+
+      function resetRepeat() {
+        const g = grids[focusedGrid];
+        const row = g.pattern[g.activeRow];
+        repeatCounters[`${focusedGrid}_${g.activeRow}`] = 1;
+        renderRepeat(row);
+      }
+
+      // Stub edit actions (no-op for parsed grids)
+      function addStitch() {}
+      function removeStitch() {}
+      function addRowBelow() {}
+      function deleteCurrentRow() {}
+
+      // ── Panel toggle ──────────────────────────────────────────────────────────
+      function openPanel() {
+        panelOpen = true;
+        document.getElementById("rightPanel").classList.remove("collapsed");
+        document.getElementById("panelOpenBtn").classList.remove("visible");
+      }
+
+      function closePanel() {
+        panelOpen = false;
+        document.getElementById("rightPanel").classList.add("collapsed");
+        document.getElementById("panelOpenBtn").classList.add("visible");
+      }
+
+      // ── Keyboard navigation ───────────────────────────────────────────────────
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT")
+          return;
+        const g = grids[focusedGrid];
+
+        if (e.key === "Escape" && selectedCell) {
+          e.preventDefault();
+          selectedCell = null;
+          renderAllGrids();
+          return;
+        }
+
+        // Row navigation: skip ellipsis rows
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          let ri = g.activeRow - 1;
+          while (ri >= 0 && g.pattern[ri].type === "repeat-ellipsis") ri--;
+          if (ri >= 0) selectRow(focusedGrid, ri);
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          let ri = g.activeRow + 1;
+          while (
+            ri < g.pattern.length &&
+            g.pattern[ri].type === "repeat-ellipsis"
+          )
+            ri++;
+          if (ri < g.pattern.length) selectRow(focusedGrid, ri);
+        }
+      });
+
+      // ── Init ──────────────────────────────────────────────────────────────────
+      renderLegend();
+      renderMeta();
+      render();
+      requestAnimationFrame(grids.length > 1 ? layoutGrids : fitToView);
+    </script>
+  </body>
+</html>

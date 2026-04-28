@@ -553,6 +553,25 @@ function zoomStep(dir) {
   zoomAt(rect.left + rect.width/2, rect.top + rect.height/2, dir > 0 ? 1.2 : 1/1.2);
 }
 
+function layoutGrids() {
+  // Auto-position grids with 100px gaps, left-to-right flow, wrapping at ROW_MAX_W.
+  // Must be called inside a requestAnimationFrame so offsetWidth/Height are available.
+  const GAP = 100, START = 60, ROW_MAX_W = 3200;
+  const els = Array.from(document.querySelectorAll('.grid-obj'));
+  if (!els.length) return;
+  let x = START, y = START, rowH = 0;
+  els.forEach((el, i) => {
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (i > 0 && x + w > ROW_MAX_W) { x = START; y += rowH + GAP; rowH = 0; }
+    grids[i].x = x;
+    grids[i].y = y;
+    x += w + GAP;
+    rowH = Math.max(rowH, h);
+  });
+  renderAllGrids();
+  fitToView();
+}
+
 function fitToView() {
   // Compute bounding box of all grid objects in canvas-space
   const els = document.querySelectorAll('.grid-obj');
@@ -848,7 +867,7 @@ document.addEventListener('keydown', e => {
         const newRow = grids[gi].pattern[newRi];
         const newIsRS = newRow.side === 'RS';
         const clampedVis = Math.min(visualPos, newRow.stitches.length - 1);
-        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : clampedVis };
+        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : newVis };
         grids[gi].activeRow = newRi;
         renderSidePanel(); renderAllGrids();
       }
@@ -893,7 +912,7 @@ document.addEventListener('keydown', e => {
 // ── Init ──────────────────────────────────────────────────────────────────
 renderLegend();
 render();
-requestAnimationFrame(fitToView);
+requestAnimationFrame(grids.length > 1 ? layoutGrids : fitToView);
 </script>
 </body>
 </html>

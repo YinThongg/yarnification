@@ -74,17 +74,22 @@ Each grid is an entry in the top-level `grids` array:
 - Canvas uses `position: absolute` with `transform: translate(cx,cy) scale(cz)` on a `#canvas` div.
 - Grid objects are `position: absolute` children of `#canvas` at `left: g.x px; top: g.y px`.
 - On init, `fitToView()` is called in a `requestAnimationFrame` — it reads rendered `offsetWidth`/`offsetHeight` and auto-computes `cx`, `cy`, `cz` to fit all grids.
-- **To place multiple grids**: set distinct `x`/`y` values with enough spacing. E.g. if grid A is ~700px wide, place grid B at `x: 800` to put it to the right.
+- **To place multiple grids**: set `x`/`y` to any non-overlapping values — the `layoutGrids()` function (called on init when `grids.length > 1`) will reflow all grids automatically with 100px gaps. You can set all grids to `x: 60, y: 60` as placeholders and the layout pass will sort them out.
 
 ### Adding a second grid
 
-Append to the `grids` array. Everything else is automatic:
+Append to the `grids` array. Positions are auto-corrected on init by `layoutGrids()`, so placeholder values are fine:
 
 ```js
 const grids = [
   { id: 'g0', label: 'Brim', x: 60, y: 60, activeRow: 0, pattern: [...] },
-  { id: 'g1', label: 'Body', x: 900, y: 60, activeRow: 0, pattern: [...] },
+  { id: 'g1', label: 'Body', x: 60, y: 60, activeRow: 0, pattern: [...] },
 ];
+```
+
+Init sequence for multi-grid files must be:
+```js
+requestAnimationFrame(grids.length > 1 ? layoutGrids : fitToView);
 ```
 
 ---
