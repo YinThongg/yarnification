@@ -1492,7 +1492,7 @@ REPEAT R3-R4: x5
       }
 
       // ── Cell rendering ────────────────────────────────────────────────────────
-      function renderCellHTML(cell) {
+      function renderCellHTML(cell, gi, ri, ci) {
         switch (cell.kind) {
           case "marker":
             return `<div class="stitch-marker"></div>`;
@@ -1514,7 +1514,9 @@ REPEAT R3-R4: x5
             const display = isInc
               ? `<span style="font-size:7px;line-height:1;font-weight:800;letter-spacing:-.5px">${cell.type}</span>`
               : cfg.symbol;
-            return `<div class="stitch-cell" style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};" title="${cfg.desc}">${display}</div>`;
+            const ec = editMode ? " editable" : "";
+            const sel = selectedCell && selectedCell.gi === gi && selectedCell.ri === ri && selectedCell.si === ci ? " selected" : "";
+            return `<div class="stitch-cell${ec}${sel}" style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};" title="${cfg.desc}" onclick="event.stopPropagation();selectCell(${gi},${ri},${ci})">${display}</div>`;
           }
           default:
             return "";
@@ -1566,8 +1568,8 @@ REPEAT R3-R4: x5
           let cellsHtml = "";
           if (isWS)
             cellsHtml += `<div class="flip-indicator" title="WS row: read right to left">◁</div>`;
-          cells.forEach((cell) => {
-            cellsHtml += renderCellHTML(cell);
+          cells.forEach((cell, ci) => {
+            cellsHtml += renderCellHTML(cell, gi, ri, ci);
           });
           if (isWS)
             cellsHtml += `<div class="flip-indicator" title="WS row: read right to left">◁</div>`;
@@ -1702,10 +1704,28 @@ REPEAT R3-R4: x5
       // ── Actions ───────────────────────────────────────────────────────────────
       function selectCell(gi, ri, si) {
         if (!editMode) return;
+        const alreadySelected = selectedCell && selectedCell.gi === gi && selectedCell.ri === ri && selectedCell.si === si;
         selectedCell = { gi, ri, si };
         focusedGrid = gi;
         grids[gi].activeRow = ri;
         renderSidePanel();
+        if (alreadySelected) {
+          cycleStitch(gi, ri, si);
+        } else {
+          renderAllGrids();
+        }
+      }
+
+      function cycleStitch(gi, ri, si) {
+        if (!editMode) return;
+        const row = grids[gi].pattern[ri];
+        if (!row || !row.cells) return;
+        // si is the visual cell index (after WS reversal); convert to actual index in row.cells
+        const actualIdx = row.isWS ? row.cells.length - 1 - si : si;
+        const cell = row.cells[actualIdx];
+        if (!cell || cell.kind !== "stitch") return;
+        const cycleTypes = Object.keys(SC);
+        cell.type = cycleTypes[(cycleTypes.indexOf(cell.type) + 1) % cycleTypes.length];
         renderAllGrids();
       }
 
@@ -1771,11 +1791,57 @@ REPEAT R3-R4: x5
         renderRepeat(row);
       }
 
-      // Stub edit actions (no-op for parsed grids)
-      function addStitch() {}
-      function removeStitch() {}
-      function addRowBelow() {}
-      function deleteCurrentRow() {}
+      function addStitch() {
+        const row = grids[focusedGrid].pattern[grids[focusedGrid].activeRow];
+        if (!row || !row.cells) return;
+        row.cells.push({ kind: "stitch", type: "K" });
+        render();
+      }
+
+      function removeStitch() {
+        const row = grids[focusedGrid].pattern[grids[focusedGrid].activeRow];
+        if (!row || !row.cells) return;
+        for (let i = row.cells.length - 1; i >= 0; i--) {
+          if (row.cells[i].kind === "stitch") { row.cells.splice(i, 1); break; }
+        }
+        render();
+      }
+
+      function addRowBelow() {
+        const g = grids[focusedGrid];
+        const cur = g.pattern[g.activeRow];
+        if (!cur || cur.type === "repeat-ellipsis") return;
+        const stitchCount = cur.cells ? cur.cells.filter(c => c.kind === "stitch").length : 10;
+        const newRow = {
+          type: "row",
+          rowNum: cur.rowNum + 0.5,
+          isWS: !cur.isWS,
+          cells: Array.from({ length: stitchCount }, () => ({ kind: "stitch", type: "K" })),
+          source: null,
+          originalLine: "New row — edit instruction here.",
+          netChange: null,
+          stitchCount: cur.stitchCount,
+          countValid: null,
+          repeatInfo: null,
+          num: cur.rowNum + 0.5,
+          side: cur.isWS ? "RS" : "WS",
+          isRepeat: false,
+          repeatTotal: 0,
+        };
+        g.pattern.splice(g.activeRow + 1, 0, newRow);
+        g.pattern.forEach((r, i) => { if (r.type === "row") r.rowNum = i + 1; });
+        g.activeRow += 1;
+        render();
+      }
+
+      function deleteCurrentRow() {
+        const g = grids[focusedGrid];
+        if (g.pattern.filter(r => r.type === "row").length <= 1) return;
+        g.pattern.splice(g.activeRow, 1);
+        if (g.activeRow >= g.pattern.length) g.activeRow = g.pattern.length - 1;
+        while (g.activeRow > 0 && g.pattern[g.activeRow] && g.pattern[g.activeRow].type === "repeat-ellipsis") g.activeRow--;
+        render();
+      }
 
       // ── Panel toggle ──────────────────────────────────────────────────────────
       function openPanel() {
@@ -1803,6 +1869,92 @@ REPEAT R3-R4: x5
           return;
         }
 
+        // Cell-level actions when in edit mode with a selected cell
+        if (editMode && selectedCell) {
+          const { gi, ri, si } = selectedCell;
+          const row = grids[gi].pattern[ri];
+          if (!row || !row.cells || row.type === "repeat-ellipsis") return;
+
+          // Build list of stitch-cell visual indices for WASD navigation
+          const dispCells = row.isWS ? [...row.cells].reverse() : row.cells;
+          const stitchVis = dispCells.map((c, i) => c.kind === "stitch" ? i : -1).filter(i => i >= 0);
+          const curPos = stitchVis.indexOf(si);
+
+          // WASD cell navigation
+          if (e.key === "a" || e.key === "A") {
+            e.preventDefault();
+            const newPos = Math.max(0, curPos - 1);
+            selectedCell = { gi, ri, si: stitchVis[newPos] ?? si };
+            renderAllGrids(); return;
+          }
+          if (e.key === "d" || e.key === "D") {
+            e.preventDefault();
+            const newPos = Math.min(stitchVis.length - 1, curPos + 1);
+            selectedCell = { gi, ri, si: stitchVis[newPos] ?? si };
+            renderAllGrids(); return;
+          }
+          if (e.key === "w" || e.key === "W") {
+            e.preventDefault();
+            let newRi = ri - 1;
+            while (newRi >= 0 && grids[gi].pattern[newRi].type === "repeat-ellipsis") newRi--;
+            if (newRi >= 0) {
+              const newRow = grids[gi].pattern[newRi];
+              const newDisp = newRow.isWS ? [...newRow.cells].reverse() : newRow.cells;
+              const newVis = newDisp.map((c, i) => c.kind === "stitch" ? i : -1).filter(i => i >= 0);
+              const clampedPos = Math.min(curPos, newVis.length - 1);
+              selectedCell = { gi, ri: newRi, si: newVis[clampedPos] ?? 0 };
+              grids[gi].activeRow = newRi;
+              renderSidePanel(); renderAllGrids();
+            }
+            return;
+          }
+          if (e.key === "s" || e.key === "S") {
+            e.preventDefault();
+            let newRi = ri + 1;
+            while (newRi < grids[gi].pattern.length && grids[gi].pattern[newRi].type === "repeat-ellipsis") newRi++;
+            if (newRi < grids[gi].pattern.length) {
+              const newRow = grids[gi].pattern[newRi];
+              const newDisp = newRow.isWS ? [...newRow.cells].reverse() : newRow.cells;
+              const newVis = newDisp.map((c, i) => c.kind === "stitch" ? i : -1).filter(i => i >= 0);
+              const clampedPos = Math.min(curPos, newVis.length - 1);
+              selectedCell = { gi, ri: newRi, si: newVis[clampedPos] ?? 0 };
+              grids[gi].activeRow = newRi;
+              renderSidePanel(); renderAllGrids();
+            }
+            return;
+          }
+
+          // Space: cycle stitch type
+          if (e.key === " ") {
+            e.preventDefault();
+            cycleStitch(gi, ri, si); return;
+          }
+
+          // +/= : insert new K stitch after selected
+          if (e.key === "+" || e.key === "=") {
+            e.preventDefault();
+            const actualIdx = row.isWS ? row.cells.length - 1 - si : si;
+            row.cells.splice(actualIdx + 1, 0, { kind: "stitch", type: "K" });
+            selectedCell = { gi, ri, si: si + 1 };
+            render(); return;
+          }
+
+          // Delete/Backspace: remove selected stitch
+          if (e.key === "Delete" || e.key === "Backspace") {
+            e.preventDefault();
+            if (row.cells.filter(c => c.kind === "stitch").length > 1) {
+              const actualIdx = row.isWS ? row.cells.length - 1 - si : si;
+              row.cells.splice(actualIdx, 1);
+              const newDispCells = row.isWS ? [...row.cells].reverse() : row.cells;
+              const newVis = newDispCells.map((c, i) => c.kind === "stitch" ? i : -1).filter(i => i >= 0);
+              selectedCell = { gi, ri, si: newVis[Math.min(curPos, newVis.length - 1)] ?? 0 };
+            }
+            render(); return;
+          }
+
+          return; // consume all other keys while a cell is selected in edit mode
+        }
+
         // Row navigation: skip ellipsis rows
         if (e.key === "ArrowUp") {
           e.preventDefault();
@@ -1812,11 +1964,7 @@ REPEAT R3-R4: x5
         } else if (e.key === "ArrowDown") {
           e.preventDefault();
           let ri = g.activeRow + 1;
-          while (
-            ri < g.pattern.length &&
-            g.pattern[ri].type === "repeat-ellipsis"
-          )
-            ri++;
+          while (ri < g.pattern.length && g.pattern[ri].type === "repeat-ellipsis") ri++;
           if (ri < g.pattern.length) selectRow(focusedGrid, ri);
         }
       });

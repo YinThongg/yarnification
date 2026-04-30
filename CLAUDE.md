@@ -1,4 +1,5 @@
 IMPORTANT: Before generating any knitting HTML file, strictly follow the rules below, and in TEMPLATE-GUIDE.md file. and do not restate them. After generating, self-check the output against every rule before finishing.
+Never remove existing features when adding new ones. If updating a file, preserve all current functionality. If unsure, ask before deleting any code.
 
 Knitting Pattern Tracker — Build Instructions
 
