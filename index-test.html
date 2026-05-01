@@ -304,6 +304,43 @@
         flex-shrink: 0;
       }
 
+      .stitch-ellipsis {
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 5px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+        user-select: none;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .stitch-ellipsis.selected {
+        background: #fef9c3;
+      }
+
+      .vdot-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 22px;
+        cursor: pointer;
+        border-radius: 6px;
+        user-select: none;
+      }
+      .vdot-row:hover { background: #f5f5f3; }
+      .vdot-row.selected { background: #fef9c3; }
+      .vdot-dots {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--text-tertiary);
+      }
+
       /* ── Zoom controls ───────────────────────────────────────────────── */
       #zoomBar {
         position: absolute;
@@ -1556,7 +1593,7 @@
 
       function renderGridHTML(g, gi) {
         const focused = gi === focusedGrid;
-        const maxSt = Math.max(...g.pattern.map((r) => r.stitches.length));
+        const maxSt = Math.max(...g.pattern.filter(r => !r.kind).map((r) => r.stitches.length));
 
         // Column headers
         // Spacer width: 2 sidebar-cells (28px each) + dir-arrow (20px) + 3×3px gaps = 85px
@@ -1568,31 +1605,42 @@
 
         // Rows
         let rows = "";
-        g.pattern.forEach((row, ri) => {
-          const active = ri === g.activeRow;
+        g.pattern.forEach((patItem, ri) => {
+          // ── Vertical dot separator ──
+          if (patItem.kind === 'vdot') {
+            const sel = selectedCell && selectedCell.gi === gi && selectedCell.ri === ri;
+            rows += `<div class="vdot-row${sel ? ' selected' : ''}"
+              onclick="event.stopPropagation();selectVDot(${gi},${ri})">
+              <span class="vdot-dots">···</span>
+            </div>`;
+            return;
+          }
+
+          // ── Normal stitch row ──
+          const row = patItem;
+          const active = ri === g.activeRow || (selectedCell && selectedCell.gi === gi && selectedCell.ri === ri);
           rows += `<div class="row-wrap${active ? " active" : ""}" onclick="selectRow(${gi},${ri})">`;
           rows += `<div class="sidebar-cell">${row.num}</div>`;
-          rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${row.stitches.length}</div>`;
+          rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${row.stitches.filter(s => s !== 'HDOT').length}</div>`;
           rows += `<div class="dir-arrow">${row.side === "RS" ? "←" : "→"}</div>`;
-          const display =
-            row.side === "RS" ? [...row.stitches].reverse() : row.stitches;
-          display.forEach((st, si) => {
-            const cfg = SC[st] || SC.K;
-            const ec = editMode ? " editable" : "";
-            const ri2 = row.side === "RS" ? row.stitches.length - 1 - si : si;
-            const sel =
-              selectedCell &&
-              selectedCell.gi === gi &&
-              selectedCell.ri === ri &&
-              selectedCell.si === ri2
-                ? " selected"
-                : "";
-            if (si > 0) rows += `<div style="width:3px;flex-shrink:0;"></div>`;
-            rows += `<div class="stitch-cell${ec}${sel}"
-        style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
-        title="${cfg.desc}"
-        onclick="event.stopPropagation();selectCell(${gi},${ri},${ri2})">
-        ${cfg.symbol}</div>`;
+          const display = row.side === "RS" ? [...row.stitches].reverse() : row.stitches;
+          display.forEach((st, di) => {
+            const si = row.side === "RS" ? row.stitches.length - 1 - di : di;
+            if (di > 0) rows += `<div style="width:3px;flex-shrink:0;"></div>`;
+            if (st === 'HDOT') {
+              const sel = selectedCell && selectedCell.gi === gi && selectedCell.ri === ri && selectedCell.si === si ? ' selected' : '';
+              rows += `<div class="stitch-ellipsis${sel}"
+                onclick="event.stopPropagation();selectCell(${gi},${ri},${si})">···</div>`;
+            } else {
+              const cfg = SC[st] || SC.K;
+              const ec = editMode ? " editable" : "";
+              const sel = selectedCell && selectedCell.gi === gi && selectedCell.ri === ri && selectedCell.si === si ? " selected" : "";
+              rows += `<div class="stitch-cell${ec}${sel}"
+                style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
+                title="${cfg.desc}"
+                onclick="event.stopPropagation();selectCell(${gi},${ri},${si})">
+                ${cfg.symbol}</div>`;
+            }
           });
           rows += `</div>`;
         });
@@ -1615,6 +1663,7 @@
       function renderSidePanel() {
         const g = grids[focusedGrid];
         const row = g.pattern[g.activeRow];
+        if (!row || row.kind === 'vdot') return;
         document.getElementById("currentRowDisplay").textContent = row.num;
         document.getElementById("panelTitle").textContent = `Row ${row.num}`;
         document.getElementById("rowSideLabel").textContent =
@@ -1728,16 +1777,21 @@
 
       function toggleEditMode() {
         editMode = !editMode;
-        if (!editMode) {
+        if (editMode) {
+          const g = grids[focusedGrid];
+          const row = g.pattern[g.activeRow];
+          if (row && !row.kind) {
+            // Auto-select the first visual stitch (leftmost on screen)
+            const si = row.side === "RS" ? row.stitches.length - 1 : 0;
+            selectedCell = { gi: focusedGrid, ri: g.activeRow, si };
+          }
+        } else {
           selectedCell = null;
-          renderAllGrids();
         }
         const btn = document.getElementById("editModeBtn");
         btn.textContent = `Edit Mode: ${editMode ? "ON" : "OFF"}`;
         btn.classList.toggle("active", editMode);
-        document
-          .getElementById("editControls")
-          .classList.toggle("hidden", !editMode);
+        document.getElementById("editControls").classList.toggle("hidden", !editMode);
         renderAllGrids();
       }
 
@@ -1829,10 +1883,17 @@
         document.getElementById("panelOpenBtn").classList.add("visible");
       }
 
+      function selectVDot(gi, ri) {
+        if (!editMode) return;
+        selectedCell = { gi, ri, si: null };
+        focusedGrid = gi;
+        grids[gi].activeRow = ri;
+        renderAllGrids();
+      }
+
       // ── Keyboard ──────────────────────────────────────────────────────────────
       document.addEventListener("keydown", (e) => {
-        if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT")
-          return;
+        if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
         const g = grids[focusedGrid];
 
         // Escape always clears cell selection
@@ -1843,123 +1904,129 @@
           return;
         }
 
-        // Cell-level actions when in edit mode with a selected cell
-        if (editMode && selectedCell) {
-          const { gi, ri, si } = selectedCell;
-          const row = grids[gi].pattern[ri];
-          const stitches = row.stitches;
-          const isRS = row.side === "RS";
-          // Visual position: 0 = leftmost on screen
-          const visualPos = isRS ? stitches.length - 1 - si : si;
+        // ── All edit-mode actions (WASD works with or without selectedCell) ──
+        if (editMode) {
+          const gi = focusedGrid;
+          const curRi = selectedCell ? selectedCell.ri : g.activeRow;
+          const curPatItem = g.pattern[curRi];
+          const isOnVDot = curPatItem && curPatItem.kind === 'vdot';
 
-          // WASD cell navigation
-          if (e.key === "a" || e.key === "A") {
-            e.preventDefault();
-            const newVis = Math.max(0, visualPos - 1);
-            selectedCell = {
-              gi,
-              ri,
-              si: isRS ? stitches.length - 1 - newVis : newVis,
-            };
-            renderAllGrids();
-            return;
+          // Resolve current visual column position, preserved across vdot rows via lastVis
+          let curVis = 0;
+          if (!isOnVDot && selectedCell && selectedCell.si !== null) {
+            curVis = curPatItem.side === "RS"
+              ? curPatItem.stitches.length - 1 - selectedCell.si
+              : selectedCell.si;
+          } else if (selectedCell && selectedCell.lastVis !== undefined) {
+            curVis = selectedCell.lastVis;
           }
-          if (e.key === "d" || e.key === "D") {
-            e.preventDefault();
-            const newVis = Math.min(stitches.length - 1, visualPos + 1);
-            selectedCell = {
-              gi,
-              ri,
-              si: isRS ? stitches.length - 1 - newVis : newVis,
-            };
-            renderAllGrids();
-            return;
-          }
+
+          // ── W: move up ──
           if (e.key === "w" || e.key === "W") {
             e.preventDefault();
-            if (ri > 0) {
-              const newRi = ri - 1;
-              const newRow = grids[gi].pattern[newRi];
-              const newIsRS = newRow.side === "RS";
-              const clampedVis = Math.min(
-                visualPos,
-                newRow.stitches.length - 1,
-              );
-              selectedCell = {
-                gi,
-                ri: newRi,
-                si: newIsRS
-                  ? newRow.stitches.length - 1 - clampedVis
-                  : clampedVis,
-              };
-              grids[gi].activeRow = newRi;
-              renderSidePanel();
-              renderAllGrids();
+            if (curRi > 0) {
+              const newRi = curRi - 1;
+              const newItem = g.pattern[newRi];
+              if (newItem.kind === 'vdot') {
+                selectedCell = { gi, ri: newRi, si: null, lastVis: curVis };
+              } else {
+                const cv = Math.min(curVis, newItem.stitches.length - 1);
+                selectedCell = { gi, ri: newRi, si: newItem.side === "RS" ? newItem.stitches.length - 1 - cv : cv };
+              }
+              g.activeRow = newRi;
+              renderSidePanel(); renderAllGrids();
             }
             return;
           }
+
+          // ── S: move down ──
           if (e.key === "s" || e.key === "S") {
             e.preventDefault();
-            if (ri < grids[gi].pattern.length - 1) {
-              const newRi = ri + 1;
-              const newRow = grids[gi].pattern[newRi];
-              const newIsRS = newRow.side === "RS";
-              const clampedVis = Math.min(
-                visualPos,
-                newRow.stitches.length - 1,
-              );
-              selectedCell = {
-                gi,
-                ri: newRi,
-                si: newIsRS ? newRow.stitches.length - 1 - clampedVis : clampedVis,
-              };
-              grids[gi].activeRow = newRi;
-              renderSidePanel();
-              renderAllGrids();
+            if (curRi < g.pattern.length - 1) {
+              const newRi = curRi + 1;
+              const newItem = g.pattern[newRi];
+              if (newItem.kind === 'vdot') {
+                selectedCell = { gi, ri: newRi, si: null, lastVis: curVis };
+              } else {
+                const cv = Math.min(curVis, newItem.stitches.length - 1);
+                selectedCell = { gi, ri: newRi, si: newItem.side === "RS" ? newItem.stitches.length - 1 - cv : cv };
+              }
+              g.activeRow = newRi;
+              renderSidePanel(); renderAllGrids();
             }
             return;
           }
 
-          // Space: cycle stitch type
-          if (e.key === " ") {
+          // ── V: insert vertical dot separator after current row ──
+          if (e.key === "v" || e.key === "V") {
             e.preventDefault();
-            cycleStitch(gi, ri, si);
-            return;
+            g.pattern.splice(curRi + 1, 0, { kind: 'vdot' });
+            renderAllGrids(); return;
           }
 
-          // +/= : insert new K stitch after selected, select it
-          if (e.key === "+" || e.key === "=") {
+          // ── Delete/Backspace on vdot row ──
+          if (isOnVDot && selectedCell && (e.key === "Delete" || e.key === "Backspace")) {
             e.preventDefault();
-            stitches.splice(si + 1, 0, "K");
-            selectedCell = { gi, ri, si: si + 1 };
-            render();
-            return;
+            g.pattern.splice(curRi, 1);
+            selectedCell = null;
+            renderAllGrids(); return;
           }
 
-          // Delete/Backspace: remove stitch, auto-select next (or last)
-          if (e.key === "Delete" || e.key === "Backspace") {
-            e.preventDefault();
-            if (stitches.length > 1) {
-              stitches.splice(si, 1);
-              selectedCell = { gi, ri, si: Math.min(si, stitches.length - 1) };
+          // ── Actions requiring a stitch cell selected ──
+          if (!isOnVDot && selectedCell && selectedCell.si !== null) {
+            const { si } = selectedCell;
+            const stitches = curPatItem.stitches;
+            const isRS = curPatItem.side === "RS";
+
+            if (e.key === "a" || e.key === "A") {
+              e.preventDefault();
+              const nv = Math.max(0, curVis - 1);
+              selectedCell = { gi, ri: curRi, si: isRS ? stitches.length - 1 - nv : nv };
+              renderAllGrids(); return;
             }
-            render();
-            return;
+            if (e.key === "d" || e.key === "D") {
+              e.preventDefault();
+              const nv = Math.min(stitches.length - 1, curVis + 1);
+              selectedCell = { gi, ri: curRi, si: isRS ? stitches.length - 1 - nv : nv };
+              renderAllGrids(); return;
+            }
+            if (e.key === " ") {
+              e.preventDefault();
+              if (stitches[si] !== 'HDOT') cycleStitch(gi, curRi, si);
+              return;
+            }
+            if (e.key === "+" || e.key === "=") {
+              e.preventDefault();
+              stitches.splice(si + 1, 0, "K");
+              selectedCell = { gi, ri: curRi, si: si + 1 };
+              render(); return;
+            }
+            if (e.key === "h" || e.key === "H") {
+              e.preventDefault();
+              const idx = curPatItem.side === "RS" ? si : si + 1;
+              stitches.splice(idx, 0, 'HDOT');
+              selectedCell = { gi, ri: curRi, si: idx };
+              renderAllGrids(); return;
+            }
+            if (e.key === "Delete" || e.key === "Backspace") {
+              e.preventDefault();
+              if (stitches[si] === 'HDOT' || stitches.length > 1) {
+                stitches.splice(si, 1);
+                selectedCell = { gi, ri: curRi, si: Math.min(si, stitches.length - 1) };
+                stitches[selectedCell.si] === 'HDOT' ? renderAllGrids() : render();
+              }
+              return;
+            }
           }
 
-          return; // consume all other keys while a cell is selected in edit mode
+          return; // consume all other keys in edit mode
         }
 
-        // Row-level navigation (arrow keys, no cell selected)
+        // ── Non-edit mode: arrow key row navigation ──
         if (e.key === "ArrowUp" && g.activeRow > 0) {
-          e.preventDefault();
-          selectRow(focusedGrid, g.activeRow - 1);
-        } else if (
-          e.key === "ArrowDown" &&
-          g.activeRow < g.pattern.length - 1
-        ) {
-          e.preventDefault();
-          selectRow(focusedGrid, g.activeRow + 1);
+          e.preventDefault(); selectRow(focusedGrid, g.activeRow - 1);
+        } else if (e.key === "ArrowDown" && g.activeRow < g.pattern.length - 1) {
+          e.preventDefault(); selectRow(focusedGrid, g.activeRow + 1);
         }
       });
 
