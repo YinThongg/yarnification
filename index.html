@@ -258,6 +258,11 @@
     textarea::placeholder { color: var(--text-tertiary); }
     textarea:focus { border-color: #a8a8a4; background: var(--surface); }
 
+    /* Meta table */
+    .meta-table { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; }
+    .meta-key { color: var(--text-tertiary); font-weight: 500; align-self: start; padding-top: 1px; }
+    .meta-val { color: var(--text); line-height: 1.4; }
+
     /* Legend */
     #legend { display: flex; flex-direction: column; gap: 7px; }
     .legend-item { display: flex; align-items: center; gap: 8px; }
@@ -347,6 +352,11 @@
       </div>
       <div id="panelBody">
 
+        <div class="panel-section" id="metaSection">
+          <div class="field-label">Pattern Info</div>
+          <div class="meta-table" id="metaContent"></div>
+        </div>
+
         <div class="panel-section">
           <div class="row-meta" id="rowSideLabel"></div>
           <div id="rowInstruction"></div>
@@ -383,14 +393,20 @@
 
 <script>
 // ── Stitch config ──────────────────────────────────────────────────────────
-const STITCH_TYPES = ['K','P','YO','K2TOG','SSK','SL'];
+const STITCH_TYPES = ['K','P','YO','K2TOG','SSK','SL','M1R','M1L','M1Rp','M1Lp','KFB','DS'];
 const SC = {
-  K:     { symbol:'·',  label:'K',     desc:'Knit',            bg:'#f8fafc', border:'#cbd5e1', text:'#334155' },
-  P:     { symbol:'–',  label:'P',     desc:'Purl',            bg:'#fffbeb', border:'#f59e0b', text:'#92400e' },
-  YO:    { symbol:'O',  label:'YO',    desc:'Yarn Over',       bg:'#f0fdf4', border:'#6ee7b7', text:'#065f46' },
-  K2TOG: { symbol:'/',  label:'K2tog', desc:'Knit 2 Together', bg:'#fff1f2', border:'#fda4af', text:'#9f1239' },
-  SSK:   { symbol:'\\', label:'SSK',   desc:'Slip Slip Knit',  bg:'#faf5ff', border:'#c4b5fd', text:'#5b21b6' },
-  SL:    { symbol:'v',  label:'Sl',    desc:'Slip',            bg:'#eff6ff', border:'#93c5fd', text:'#1e40af' },
+  K:     { symbol:'·',  label:'K',     desc:'Knit',              bg:'#f8fafc', border:'#cbd5e1', text:'#334155' },
+  P:     { symbol:'–',  label:'P',     desc:'Purl',              bg:'#fffbeb', border:'#f59e0b', text:'#92400e' },
+  YO:    { symbol:'O',  label:'YO',    desc:'Yarn Over',         bg:'#f0fdf4', border:'#6ee7b7', text:'#065f46' },
+  K2TOG: { symbol:'/',  label:'K2tog', desc:'Knit 2 Together',   bg:'#fff1f2', border:'#fda4af', text:'#9f1239' },
+  SSK:   { symbol:'\\', label:'SSK',   desc:'Slip Slip Knit',    bg:'#faf5ff', border:'#c4b5fd', text:'#5b21b6' },
+  SL:    { symbol:'v',  label:'Sl',    desc:'Slip',              bg:'#eff6ff', border:'#93c5fd', text:'#1e40af' },
+  M1R:   { symbol:'+',  label:'M1R',   desc:'Make 1 Right',      bg:'#f0fdf4', border:'#4ade80', text:'#14532d' },
+  M1L:   { symbol:'+',  label:'M1L',   desc:'Make 1 Left',       bg:'#f0fdf4', border:'#4ade80', text:'#14532d' },
+  M1Rp:  { symbol:'+',  label:'M1Rp',  desc:'Make 1 Right Purl', bg:'#fefce8', border:'#fbbf24', text:'#78350f' },
+  M1Lp:  { symbol:'+',  label:'M1Lp',  desc:'Make 1 Left Purl',  bg:'#fefce8', border:'#fbbf24', text:'#78350f' },
+  KFB:   { symbol:'+',  label:'KFB',   desc:'Knit Front & Back', bg:'#f0fdf4', border:'#4ade80', text:'#14532d' },
+  DS:    { symbol:'DS', label:'DS',    desc:'Double Stitch',     bg:'#fdf4ff', border:'#e879f9', text:'#701a75' },
 };
 
 function ms(...a) {
@@ -692,7 +708,24 @@ function renderLegend() {
   }).join('');
 }
 
-function render() { renderAllGrids(); renderSidePanel(); }
+function renderMeta() {
+  const g = grids[focusedGrid];
+  const totalRows = g.pattern.length;
+  const stitchCounts = g.pattern.map(r => r.stitches.length);
+  const minSt = Math.min(...stitchCounts);
+  const maxSt = Math.max(...stitchCounts);
+  const stRange = minSt === maxSt ? `${minSt} sts` : `${minSt}–${maxSt} sts`;
+  const rows = [
+    ['Pattern', g.label],
+    ['Rows', totalRows],
+    ['Stitches', stRange],
+  ];
+  document.getElementById('metaContent').innerHTML = rows
+    .map(([k, v]) => `<span class="meta-key">${k}</span><span class="meta-val">${v}</span>`)
+    .join('');
+}
+
+function render() { renderAllGrids(); renderSidePanel(); renderMeta(); }
 
 // ── Actions ───────────────────────────────────────────────────────────────
 function selectCell(gi, ri, si) {
@@ -867,7 +900,7 @@ document.addEventListener('keydown', e => {
         const newRow = grids[gi].pattern[newRi];
         const newIsRS = newRow.side === 'RS';
         const clampedVis = Math.min(visualPos, newRow.stitches.length - 1);
-        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : newVis };
+        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : clampedVis };
         grids[gi].activeRow = newRi;
         renderSidePanel(); renderAllGrids();
       }
