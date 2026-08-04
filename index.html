@@ -1,657 +1,1673 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Knitting Pattern Tracker</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knitting Pattern Tracker</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    :root {
-      --bg: #f9f9f8;
-      --surface: #ffffff;
-      --border: #e5e5e3;
-      --border-soft: #eeeeec;
-      --text: #1a1a18;
-      --text-secondary: #6b6b68;
-      --text-tertiary: #a8a8a4;
-      --accent: #d97706;
-      --panel-w: 360px;
-      --cell: 34px;
-      --header-h: 56px;
-    }
+      :root {
+        --bg: #f9f9f8;
+        --surface: #ffffff;
+        --border: #e5e5e3;
+        --border-soft: #eeeeec;
+        --text: #1a1a18;
+        --text-secondary: #6b6b68;
+        --text-tertiary: #a8a8a4;
+        --accent: #d97706;
+        --panel-w: 360px;
+        --cell: 34px;
+        --header-h: 56px;
+      }
 
-    html, body { height: 100%; overflow: hidden; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-    }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+      }
 
-    /* ── Topbar ─────────────────────────────────────────────────────── */
-    #topbar {
-      height: var(--header-h);
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center;
-      padding: 0 20px; gap: 16px;
-      flex-shrink: 0; z-index: 10;
-    }
-    #topbar-title { flex: 1; }
-    #topbar-title h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
-    #topbar-title p  { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; }
-    #topbar-right { display: flex; align-items: center; gap: 12px; }
+      /* ── Topbar ─────────────────────────────────────────────────────── */
+      #topbar {
+        height: var(--header-h);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        gap: 16px;
+        flex-shrink: 0;
+        z-index: 10;
+      }
+      #topbar-title {
+        flex: 1;
+      }
+      #topbar-title h1 {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      #topbar-title p {
+        font-size: 12px;
+        color: var(--text-tertiary);
+        margin-top: 1px;
+      }
+      #topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
 
-    .row-badge { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-    .row-badge-label { font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-tertiary); }
-    #currentRowDisplay { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
-    .row-badge-hint { font-size: 10px; color: var(--text-tertiary); }
+      .row-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+      }
+      .row-badge-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      #currentRowDisplay {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -1px;
+      }
+      .row-badge-hint {
+        font-size: 10px;
+        color: var(--text-tertiary);
+      }
 
-    #editModeBtn {
-      height: 32px; padding: 0 12px; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--surface);
-      font-size: 13px; font-weight: 500; color: var(--text-secondary);
-      cursor: pointer; transition: background .12s, border-color .12s, color .12s;
-    }
-    #editModeBtn:hover { background: var(--bg); }
-    #editModeBtn.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+      #editModeBtn {
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          border-color 0.12s,
+          color 0.12s;
+      }
+      #editModeBtn:hover {
+        background: var(--bg);
+      }
+      #editModeBtn.active {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+      }
 
-    /* ── Content row ─────────────────────────────────────────────────── */
-    #content { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+      /* ── Content row ─────────────────────────────────────────────────── */
+      #content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        min-height: 0;
+      }
 
-    /* ── Canvas ──────────────────────────────────────────────────────── */
-    #canvasWrap {
-      flex: 1; position: relative; overflow: hidden; min-width: 0;
-      background-color: #f2f2f0;
-      background-image: radial-gradient(circle, #c6c6c2 1px, transparent 1px);
-      background-size: 24px 24px;
-      cursor: grab;
-    }
-    #canvasWrap.panning { cursor: grabbing; }
+      /* ── Canvas ──────────────────────────────────────────────────────── */
+      #canvasWrap {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        min-width: 0;
+        background-color: #f2f2f0;
+        background-image: radial-gradient(circle, #c6c6c2 1px, transparent 1px);
+        background-size: 24px 24px;
+        cursor: grab;
+      }
+      #canvasWrap.panning {
+        cursor: grabbing;
+      }
 
-    #canvas {
-      position: absolute; top: 0; left: 0;
-      transform-origin: 0 0;
-      will-change: transform;
-    }
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
 
-    /* ── Grid objects on canvas ──────────────────────────────────────── */
-    .grid-obj { position: absolute; }
+      /* ── Grid objects on canvas ──────────────────────────────────────── */
+      .grid-obj {
+        position: absolute;
+      }
 
-    .grid-label {
-      font-size: 11px; font-weight: 600;
-      letter-spacing: .05em; text-transform: uppercase;
-      color: var(--text-tertiary);
-      margin-bottom: 8px; padding-left: 2px;
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 6px;
-    }
-    .grid-del {
-      opacity: 0; flex-shrink: 0;
-      width: 18px; height: 18px; border-radius: 4px;
-      border: none; background: transparent; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; line-height: 1;
-      color: var(--text-tertiary);
-      transition: opacity .15s, background .1s, color .1s;
-    }
-    .grid-obj:hover .grid-del { opacity: 1; }
-    .grid-del:hover { background: rgba(0,0,0,.09); color: var(--text); }
+      .grid-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+        margin-bottom: 8px;
+        padding-left: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .grid-del {
+        opacity: 0;
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 1;
+        color: var(--text-tertiary);
+        transition:
+          opacity 0.15s,
+          background 0.1s,
+          color 0.1s;
+      }
+      .grid-obj:hover .grid-del {
+        opacity: 1;
+      }
+      .grid-del:hover {
+        background: rgba(0, 0, 0, 0.09);
+        color: var(--text);
+      }
 
-    .chart-card {
-      background: var(--surface);
-      border: 2px solid transparent;
-      border-radius: 12px;
-      padding: 14px 18px 18px;
-      display: inline-block; min-width: min-content;
-      box-shadow: 0 1px 4px rgba(0,0,0,.07);
-      transition: border-color .15s, box-shadow .15s;
-      cursor: default;
-    }
-    .chart-card.focused {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(217,119,6,.1), 0 2px 12px rgba(0,0,0,.09);
-    }
+      .chart-card {
+        background: var(--surface);
+        border: 2px solid transparent;
+        border-radius: 12px;
+        padding: 14px 18px 18px;
+        display: inline-block;
+        min-width: min-content;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+        cursor: default;
+      }
+      .chart-card.focused {
+        border-color: var(--accent);
+        box-shadow:
+          0 0 0 4px rgba(217, 119, 6, 0.1),
+          0 2px 12px rgba(0, 0, 0, 0.09);
+      }
 
-    /* ── Chart cells ─────────────────────────────────────────────────── */
-    .stitch-cell {
-      width: var(--cell); height: var(--cell);
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700;
-      border-width: 1px; border-style: solid; border-radius: 4px;
-      user-select: none; flex-shrink: 0;
-      transition: filter .08s, transform .06s;
-    }
-    .stitch-cell.editable { cursor: pointer; }
-    .stitch-cell.editable:hover { filter: brightness(.87); transform: scale(1.07); }
-    .stitch-cell.selected {
-      border-color: var(--accent) !important;
-      box-shadow: 0 0 0 2px var(--accent);
-      position: relative; z-index: 1;
-    }
+      /* ── Chart cells ─────────────────────────────────────────────────── */
+      .stitch-cell {
+        width: var(--cell);
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        border-width: 1px;
+        border-style: solid;
+        border-radius: 4px;
+        user-select: none;
+        flex-shrink: 0;
+        transition:
+          filter 0.08s,
+          transform 0.06s;
+      }
+      .stitch-cell.editable {
+        cursor: pointer;
+      }
+      .stitch-cell.editable:hover {
+        filter: brightness(0.87);
+        transform: scale(1.07);
+      }
+      .stitch-cell.selected {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px var(--accent);
+        position: relative;
+        z-index: 1;
+      }
 
-    .col-label {
-      width: var(--cell); height: 20px;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 10px; color: var(--text-tertiary);
-      flex-shrink: 0; font-variant-numeric: tabular-nums;
-    }
+      .col-label {
+        width: var(--cell);
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
 
-    .row-wrap {
-      display: flex; align-items: center; gap: 3px;
-      padding: 2px 4px; cursor: pointer; border-radius: 6px;
-      transition: background .1s;
-    }
-    .row-wrap:hover { background: #f5f5f3; }
-    .row-wrap.active { background: #fef9c3; }
+      .row-wrap {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 4px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: background 0.1s;
+      }
+      .row-wrap:hover {
+        background: #f5f5f3;
+      }
+      .row-wrap.active {
+        background: #fef9c3;
+      }
 
-    .sidebar-cell {
-      width: 28px; height: var(--cell);
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 600; flex-shrink: 0;
-      border-radius: 4px; color: var(--text-secondary);
-    }
-    .row-wrap.active .sidebar-cell { color: #92400e; }
+      .sidebar-cell {
+        width: 28px;
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+        border-radius: 4px;
+        color: var(--text-secondary);
+      }
+      .row-wrap.active .sidebar-cell {
+        color: #92400e;
+      }
 
-    .dir-arrow {
-      width: 20px; height: var(--cell);
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 12px; color: var(--text-tertiary); flex-shrink: 0;
-    }
+      .dir-arrow {
+        width: 20px;
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+      }
 
-    /* ── Zoom controls ───────────────────────────────────────────────── */
-    #zoomBar {
-      position: absolute; bottom: 16px; left: 16px;
-      display: flex; align-items: center; gap: 2px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 3px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.06);
-      z-index: 5; user-select: none;
-    }
-    .z-btn {
-      width: 28px; height: 28px; border-radius: 5px;
-      border: none; background: transparent; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: var(--text-secondary);
-      transition: background .1s;
-    }
-    .z-btn:hover { background: var(--bg); }
-    #zoomLabel {
-      font-size: 12px; font-weight: 500; color: var(--text-secondary);
-      min-width: 40px; text-align: center; font-variant-numeric: tabular-nums;
-    }
-    .z-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
-    .z-fit {
-      height: 28px; padding: 0 10px; border-radius: 5px;
-      border: none; background: transparent; cursor: pointer;
-      font-size: 12px; font-weight: 500; color: var(--text-secondary);
-      transition: background .1s;
-    }
-    .z-fit:hover { background: var(--bg); }
+      .stitch-ellipsis {
+        height: var(--cell);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 5px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+        user-select: none;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .stitch-ellipsis.selected {
+        background: #fef9c3;
+      }
 
-    /* ── Right panel ─────────────────────────────────────────────────── */
-    #rightPanel {
-      width: var(--panel-w); flex-shrink: 0;
-      background: var(--surface); border-left: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      transition: width .26s cubic-bezier(.4,0,.2,1);
-      overflow: hidden;
-    }
-    #rightPanel.collapsed { width: 0; border-left-color: transparent; }
+      .vdot-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 22px;
+        cursor: pointer;
+        border-radius: 6px;
+        user-select: none;
+      }
+      .vdot-row:hover {
+        background: #f5f5f3;
+      }
+      .vdot-row.selected {
+        background: #fef9c3;
+      }
+      .vdot-dots {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--text-tertiary);
+      }
 
-    #panelInner {
-      width: var(--panel-w); flex: 1;
-      display: flex; flex-direction: column; overflow: hidden;
-      transition: opacity .16s ease;
-    }
-    #rightPanel.collapsed #panelInner { opacity: 0; pointer-events: none; }
+      /* ── Zoom controls ───────────────────────────────────────────────── */
+      #zoomBar {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 3px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 5;
+        user-select: none;
+      }
+      .z-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: var(--text-secondary);
+        transition: background 0.1s;
+      }
+      .z-btn:hover {
+        background: var(--bg);
+      }
+      #zoomLabel {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        min-width: 40px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .z-sep {
+        width: 1px;
+        height: 16px;
+        background: var(--border);
+        margin: 0 2px;
+      }
+      .z-fit {
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: background 0.1s;
+      }
+      .z-fit:hover {
+        background: var(--bg);
+      }
 
-    #panelHeader {
-      height: var(--header-h); border-bottom: 1px solid var(--border-soft);
-      display: flex; align-items: center; padding: 0 16px 0 20px;
-      flex-shrink: 0; gap: 8px;
-    }
-    #panelTitle { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-    #panelCloseBtn {
-      width: 28px; height: 28px; border-radius: 6px;
-      border: none; background: transparent; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text-tertiary); transition: background .1s, color .1s;
-    }
-    #panelCloseBtn:hover { background: var(--bg); color: var(--text-secondary); }
+      /* ── Right panel ─────────────────────────────────────────────────── */
+      #rightPanel {
+        width: var(--panel-w);
+        flex-shrink: 0;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+      }
+      #rightPanel.collapsed {
+        width: 0;
+        border-left-color: transparent;
+      }
 
-    #panelBody { flex: 1; overflow-y: auto; padding: 20px; }
+      #panelInner {
+        width: var(--panel-w);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: opacity 0.16s ease;
+      }
+      #rightPanel.collapsed #panelInner {
+        opacity: 0;
+        pointer-events: none;
+      }
 
-    /* Panel open tab */
-    #panelOpenBtn {
-      position: fixed; right: 0; top: calc(var(--header-h) + 20px);
-      z-index: 50; opacity: 0; pointer-events: none; transition: opacity .2s;
-    }
-    #panelOpenBtn.visible { opacity: 1; pointer-events: auto; }
-    #panelOpenBtnInner {
-      display: flex; align-items: center; gap: 6px;
-      padding: 8px 10px 8px 8px;
-      background: var(--surface); border: 1px solid var(--border); border-right: none;
-      border-radius: 8px 0 0 8px; cursor: pointer;
-      color: var(--text-tertiary); font-size: 12px; font-weight: 500;
-      white-space: nowrap; transform: translateX(-100%);
-      transition: color .1s, background .1s;
-      box-shadow: -2px 0 8px rgba(0,0,0,.04);
-    }
-    #panelOpenBtnInner:hover { background: var(--bg); color: var(--text-secondary); }
+      #panelHeader {
+        height: var(--header-h);
+        border-bottom: 1px solid var(--border-soft);
+        display: flex;
+        align-items: center;
+        padding: 0 16px 0 20px;
+        flex-shrink: 0;
+        gap: 8px;
+      }
+      #panelTitle {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      #panelCloseBtn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-tertiary);
+        transition:
+          background 0.1s,
+          color 0.1s;
+      }
+      #panelCloseBtn:hover {
+        background: var(--bg);
+        color: var(--text-secondary);
+      }
 
-    /* Panel sections */
-    .panel-section { margin-bottom: 20px; }
-    .panel-section + .panel-section { padding-top: 20px; border-top: 1px solid var(--border-soft); }
-    .row-meta { font-size: 11px; font-weight: 500; color: var(--text-tertiary); letter-spacing: .03em; margin-bottom: 6px; }
-    #rowInstruction { font-size: 13.5px; line-height: 1.6; color: var(--text); white-space: pre-line; }
+      #panelBody {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+      }
 
-    .field-label { font-size: 11px; font-weight: 500; color: var(--text-tertiary); margin-bottom: 6px; display: block; }
-    textarea {
-      width: 100%; font-size: 13px; border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px 10px; color: var(--text);
-      background: var(--bg); resize: none; font-family: inherit;
-      line-height: 1.5; outline: none; transition: border-color .12s;
-    }
-    textarea::placeholder { color: var(--text-tertiary); }
-    textarea:focus { border-color: #a8a8a4; background: var(--surface); }
+      /* Panel open tab */
+      #panelOpenBtn {
+        position: fixed;
+        right: 0;
+        top: calc(var(--header-h) + 20px);
+        z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      #panelOpenBtn.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #panelOpenBtnInner {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px 8px 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        cursor: pointer;
+        color: var(--text-tertiary);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        transform: translateX(-100%);
+        transition:
+          color 0.1s,
+          background 0.1s;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04);
+      }
+      #panelOpenBtnInner:hover {
+        background: var(--bg);
+        color: var(--text-secondary);
+      }
 
-    /* Meta table */
-    .meta-table { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; }
-    .meta-key { color: var(--text-tertiary); font-weight: 500; align-self: start; padding-top: 1px; }
-    .meta-val { color: var(--text); line-height: 1.4; }
+      /* Panel sections */
+      .panel-section {
+        margin-bottom: 20px;
+      }
+      .panel-section + .panel-section {
+        padding-top: 20px;
+        border-top: 1px solid var(--border-soft);
+      }
+      .row-meta {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        letter-spacing: 0.03em;
+        margin-bottom: 6px;
+      }
+      #rowInstruction {
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: var(--text);
+        white-space: pre-line;
+      }
 
-    /* Legend */
-    #legend { display: flex; flex-direction: column; gap: 7px; }
-    .legend-item { display: flex; align-items: center; gap: 8px; }
-    .legend-item .stitch-cell { width: 26px; height: 26px; font-size: 11px; flex-shrink: 0; }
-    .legend-name { font-size: 12px; font-weight: 500; color: var(--text-secondary); min-width: 36px; }
-    .legend-desc { font-size: 12px; color: var(--text-tertiary); }
+      .field-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        margin-bottom: 6px;
+        display: block;
+      }
+      textarea {
+        width: 100%;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        color: var(--text);
+        background: var(--bg);
+        resize: none;
+        font-family: inherit;
+        line-height: 1.5;
+        outline: none;
+        transition: border-color 0.12s;
+      }
+      textarea::placeholder {
+        color: var(--text-tertiary);
+      }
+      textarea:focus {
+        border-color: #a8a8a4;
+        background: var(--surface);
+      }
 
-    /* Repeat */
-    .repeat-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-    .repeat-btn {
-      width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--surface); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: var(--text-secondary); transition: background .1s;
-    }
-    .repeat-btn:hover { background: var(--bg); }
-    .repeat-val { font-size: 22px; font-weight: 700; min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
-    .repeat-of  { font-size: 13px; color: var(--text-tertiary); }
-    .repeat-reset { font-size: 11px; color: var(--text-tertiary); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-    .repeat-reset:hover { color: var(--text-secondary); }
+      /* Meta table */
+      .meta-table {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 10px;
+        font-size: 12px;
+      }
+      .meta-key {
+        color: var(--text-tertiary);
+        font-weight: 500;
+        align-self: start;
+        padding-top: 1px;
+      }
+      .meta-val {
+        color: var(--text);
+        line-height: 1.4;
+      }
 
-    /* Edit controls */
-    .edit-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 100px; padding: 2px 8px; margin-bottom: 10px; }
-    .edit-btn { height: 28px; padding: 0 10px; font-size: 12px; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); cursor: pointer; transition: background .1s; }
-    .edit-btn:hover { background: var(--bg); }
-    .edit-btn.danger { border-color: #fca5a5; color: #ef4444; }
-    .edit-btn.danger:hover { background: #fff1f2; }
-    .edit-hint { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
+      /* Legend */
+      #legend {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .legend-item .stitch-cell {
+        width: 26px;
+        height: 26px;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      .legend-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        min-width: 36px;
+      }
+      .legend-desc {
+        font-size: 12px;
+        color: var(--text-tertiary);
+      }
 
-    .hidden { display: none !important; }
-  </style>
-</head>
-<body>
+      /* Repeat */
+      .repeat-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .repeat-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: var(--text-secondary);
+        transition: background 0.1s;
+      }
+      .repeat-btn:hover {
+        background: var(--bg);
+      }
+      .repeat-val {
+        font-size: 22px;
+        font-weight: 700;
+        min-width: 28px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .repeat-of {
+        font-size: 13px;
+        color: var(--text-tertiary);
+      }
+      .repeat-reset {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .repeat-reset:hover {
+        color: var(--text-secondary);
+      }
 
-<!-- Topbar -->
-<div id="topbar">
-  <div id="topbar-title">
-    <h1>Knitting Pattern Tracker</h1>
-    <p>Ribbed Beanie &middot; 20 rows &middot; worsted weight</p>
-  </div>
-  <div id="topbar-right">
-    <div class="row-badge">
-      <span class="row-badge-label">Active Row</span>
-      <span id="currentRowDisplay">1</span>
-      <span class="row-badge-hint">↑↓ to navigate</span>
-    </div>
-    <button id="editModeBtn" onclick="toggleEditMode()">Edit Mode: OFF</button>
-  </div>
-</div>
+      /* Edit controls */
+      .edit-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #92400e;
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 100px;
+        padding: 2px 8px;
+        margin-bottom: 10px;
+      }
+      .edit-btn {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .edit-btn:hover {
+        background: var(--bg);
+      }
+      .edit-btn.danger {
+        border-color: #fca5a5;
+        color: #ef4444;
+      }
+      .edit-btn.danger:hover {
+        background: #fff1f2;
+      }
+      .edit-hint {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
+      }
 
-<!-- Content -->
-<div id="content">
-
-  <!-- Infinite canvas -->
-  <div id="canvasWrap">
-    <div id="canvas"></div>
-
-    <div id="zoomBar">
-      <button class="z-btn" onclick="zoomStep(-1)" title="Zoom out">−</button>
-      <span id="zoomLabel">100%</span>
-      <button class="z-btn" onclick="zoomStep(1)"  title="Zoom in">+</button>
-      <div class="z-sep"></div>
-      <button class="z-fit" onclick="fitToView()">Fit</button>
-    </div>
-  </div>
-
-  <!-- Panel re-open tab -->
-  <div id="panelOpenBtn" onclick="openPanel()">
-    <div id="panelOpenBtnInner">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-        <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Row Details
-    </div>
-  </div>
-
-  <!-- Right panel -->
-  <div id="rightPanel">
-    <div id="panelInner">
-      <div id="panelHeader">
-        <span id="panelTitle">Row Details</span>
-        <button id="panelCloseBtn" onclick="closePanel()" title="Close">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M6 3L11 8L6 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Topbar -->
+    <div id="topbar">
+      <div id="topbar-title">
+        <h1>Knitting Pattern Tracker</h1>
+        <p>Ribbed Beanie &middot; 20 rows &middot; worsted weight</p>
+      </div>
+      <div id="topbar-right">
+        <div class="row-badge">
+          <span class="row-badge-label">Active Row</span>
+          <span id="currentRowDisplay">1</span>
+          <span class="row-badge-hint">↑↓ to navigate</span>
+        </div>
+        <button id="editModeBtn" onclick="toggleEditMode()">
+          Edit Mode: OFF
         </button>
       </div>
-      <div id="panelBody">
+    </div>
 
-        <div class="panel-section" id="metaSection">
-          <div class="field-label">Pattern Info</div>
-          <div class="meta-table" id="metaContent"></div>
+    <!-- Content -->
+    <div id="content">
+      <!-- Infinite canvas -->
+      <div id="canvasWrap">
+        <div id="canvas"></div>
+
+        <div id="zoomBar">
+          <button class="z-btn" onclick="zoomStep(-1)" title="Zoom out">
+            −
+          </button>
+          <span id="zoomLabel">100%</span>
+          <button class="z-btn" onclick="zoomStep(1)" title="Zoom in">+</button>
+          <div class="z-sep"></div>
+          <button class="z-fit" onclick="fitToView()">Fit</button>
         </div>
+      </div>
 
-        <div class="panel-section">
-          <div class="row-meta" id="rowSideLabel"></div>
-          <div id="rowInstruction"></div>
+      <!-- Panel re-open tab -->
+      <div id="panelOpenBtn" onclick="openPanel()">
+        <div id="panelOpenBtnInner">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M10 3L5 8L10 13"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Row Details
         </div>
+      </div>
 
-        <div class="panel-section">
-          <label class="field-label" for="notesInput">Notes &middot; row <span id="notesRowLabel">1</span></label>
-          <textarea id="notesInput" rows="4" placeholder="Add notes for this row…" oninput="saveNote()"></textarea>
-        </div>
-
-        <div class="panel-section" id="repeatSection"></div>
-
-        <div class="panel-section">
-          <div class="field-label">Legend</div>
-          <div id="legend"></div>
-        </div>
-
-        <div class="panel-section hidden" id="editControls">
-          <div class="edit-pill">✦ Edit mode</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            <button class="edit-btn" onclick="addStitch()">+ stitch</button>
-            <button class="edit-btn" onclick="removeStitch()">− stitch</button>
-            <button class="edit-btn" onclick="addRowBelow()">+ row below</button>
-            <button class="edit-btn danger" onclick="deleteCurrentRow()">Delete row</button>
+      <!-- Right panel -->
+      <div id="rightPanel">
+        <div id="panelInner">
+          <div id="panelHeader">
+            <span id="panelTitle">Row Details</span>
+            <button id="panelCloseBtn" onclick="closePanel()" title="Close">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M6 3L11 8L6 13"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
           </div>
-          <div class="edit-hint">Click any cell to cycle its stitch type.</div>
-        </div>
+          <div id="panelBody">
+            <div class="panel-section" id="metaSection">
+              <div class="field-label">Pattern Info</div>
+              <div class="meta-table" id="metaContent"></div>
+            </div>
 
+            <div class="panel-section">
+              <div class="row-meta" id="rowSideLabel"></div>
+              <div id="rowInstruction"></div>
+            </div>
+
+            <div class="panel-section">
+              <label class="field-label" for="notesInput"
+                >Notes &middot; row <span id="notesRowLabel">1</span></label
+              >
+              <textarea
+                id="notesInput"
+                rows="4"
+                placeholder="Add notes for this row…"
+                oninput="saveNote()"
+              ></textarea>
+            </div>
+
+            <div class="panel-section" id="repeatSection"></div>
+
+            <div class="panel-section">
+              <div class="field-label">Legend</div>
+              <div id="legend"></div>
+            </div>
+
+            <div class="panel-section hidden" id="editControls">
+              <div class="edit-pill">✦ Edit mode</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                <button class="edit-btn" onclick="addStitch()">+ stitch</button>
+                <button class="edit-btn" onclick="removeStitch()">
+                  − stitch
+                </button>
+                <button class="edit-btn" onclick="addRowBelow()">
+                  + row below
+                </button>
+                <button class="edit-btn danger" onclick="deleteCurrentRow()">
+                  Delete row
+                </button>
+              </div>
+              <div class="edit-hint">
+                Click any cell to cycle its stitch type.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-</div>
+    <script>
+      // ── Stitch config ──────────────────────────────────────────────────────────
+      const STITCH_TYPES = [
+        "K",
+        "P",
+        "YO",
+        "K2TOG",
+        "SSK",
+        "SL",
+        "M1R",
+        "M1L",
+        "M1Rp",
+        "M1Lp",
+        "KFB",
+        "DS",
+      ];
+      const SC = {
+        K: {
+          symbol: "·",
+          label: "K",
+          desc: "Knit",
+          bg: "#f8fafc",
+          border: "#cbd5e1",
+          text: "#334155",
+        },
+        P: {
+          symbol: "–",
+          label: "P",
+          desc: "Purl",
+          bg: "#fffbeb",
+          border: "#f59e0b",
+          text: "#92400e",
+        },
+        YO: {
+          symbol: "O",
+          label: "YO",
+          desc: "Yarn Over",
+          bg: "#f0fdf4",
+          border: "#6ee7b7",
+          text: "#065f46",
+        },
+        K2TOG: {
+          symbol: "/",
+          label: "K2tog",
+          desc: "Knit 2 Together",
+          bg: "#fff1f2",
+          border: "#fda4af",
+          text: "#9f1239",
+        },
+        SSK: {
+          symbol: "\\",
+          label: "SSK",
+          desc: "Slip Slip Knit",
+          bg: "#faf5ff",
+          border: "#c4b5fd",
+          text: "#5b21b6",
+        },
+        SL: {
+          symbol: "v",
+          label: "Sl",
+          desc: "Slip",
+          bg: "#eff6ff",
+          border: "#93c5fd",
+          text: "#1e40af",
+        },
+        M1R: {
+          symbol: "+",
+          label: "M1R",
+          desc: "Make 1 Right",
+          bg: "#f0fdf4",
+          border: "#4ade80",
+          text: "#14532d",
+        },
+        M1L: {
+          symbol: "+",
+          label: "M1L",
+          desc: "Make 1 Left",
+          bg: "#f0fdf4",
+          border: "#4ade80",
+          text: "#14532d",
+        },
+        M1Rp: {
+          symbol: "+",
+          label: "M1Rp",
+          desc: "Make 1 Right Purl",
+          bg: "#fefce8",
+          border: "#fbbf24",
+          text: "#78350f",
+        },
+        M1Lp: {
+          symbol: "+",
+          label: "M1Lp",
+          desc: "Make 1 Left Purl",
+          bg: "#fefce8",
+          border: "#fbbf24",
+          text: "#78350f",
+        },
+        KFB: {
+          symbol: "+",
+          label: "KFB",
+          desc: "Knit Front & Back",
+          bg: "#f0fdf4",
+          border: "#4ade80",
+          text: "#14532d",
+        },
+        DS: {
+          symbol: "DS",
+          label: "DS",
+          desc: "Double Stitch",
+          bg: "#fdf4ff",
+          border: "#e879f9",
+          text: "#701a75",
+        },
+      };
 
-<script>
-// ── Stitch config ──────────────────────────────────────────────────────────
-const STITCH_TYPES = ['K','P','YO','K2TOG','SSK','SL','M1R','M1L','M1Rp','M1Lp','KFB','DS'];
-const SC = {
-  K:     { symbol:'·',  label:'K',     desc:'Knit',              bg:'#f8fafc', border:'#cbd5e1', text:'#334155' },
-  P:     { symbol:'–',  label:'P',     desc:'Purl',              bg:'#fffbeb', border:'#f59e0b', text:'#92400e' },
-  YO:    { symbol:'O',  label:'YO',    desc:'Yarn Over',         bg:'#f0fdf4', border:'#6ee7b7', text:'#065f46' },
-  K2TOG: { symbol:'/',  label:'K2tog', desc:'Knit 2 Together',   bg:'#fff1f2', border:'#fda4af', text:'#9f1239' },
-  SSK:   { symbol:'\\', label:'SSK',   desc:'Slip Slip Knit',    bg:'#faf5ff', border:'#c4b5fd', text:'#5b21b6' },
-  SL:    { symbol:'v',  label:'Sl',    desc:'Slip',              bg:'#eff6ff', border:'#93c5fd', text:'#1e40af' },
-  M1R:   { symbol:'+',  label:'M1R',   desc:'Make 1 Right',      bg:'#f0fdf4', border:'#4ade80', text:'#14532d' },
-  M1L:   { symbol:'+',  label:'M1L',   desc:'Make 1 Left',       bg:'#f0fdf4', border:'#4ade80', text:'#14532d' },
-  M1Rp:  { symbol:'+',  label:'M1Rp',  desc:'Make 1 Right Purl', bg:'#fefce8', border:'#fbbf24', text:'#78350f' },
-  M1Lp:  { symbol:'+',  label:'M1Lp',  desc:'Make 1 Left Purl',  bg:'#fefce8', border:'#fbbf24', text:'#78350f' },
-  KFB:   { symbol:'+',  label:'KFB',   desc:'Knit Front & Back', bg:'#f0fdf4', border:'#4ade80', text:'#14532d' },
-  DS:    { symbol:'DS', label:'DS',    desc:'Double Stitch',     bg:'#fdf4ff', border:'#e879f9', text:'#701a75' },
-};
+      function ms(...a) {
+        const r = [];
+        for (let i = 0; i < a.length; i += 2)
+          for (let j = 0; j < a[i + 1]; j++) r.push(a[i]);
+        return r;
+      }
 
-function ms(...a) {
-  const r = [];
-  for (let i = 0; i < a.length; i += 2) for (let j = 0; j < a[i+1]; j++) r.push(a[i]);
-  return r;
-}
+      // ── Grids ─────────────────────────────────────────────────────────────────
+      // Architecture: each grid is an independent object on the canvas at (x, y).
+      // Add more entries here to place additional patterns on the same canvas.
+      const grids = [
+        {
+          id: "g0",
+          label: "Ribbed Beanie",
+          x: 60,
+          y: 60,
+          activeRow: 0,
+          pattern: [
+            {
+              num: 1,
+              side: "RS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+              ),
+              instruction:
+                "Row 1 (RS): *K2, P2; repeat from * to end. (24 sts)\nEstablishes the 2×2 rib that gives the brim its stretch.",
+            },
+            {
+              num: 2,
+              side: "WS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+              ),
+              instruction:
+                "Row 2 (WS): *P2, K2; repeat from * to end. (24 sts)\nWork stitches as they appear — knit the knits, purl the purls.",
+            },
+            {
+              num: 3,
+              side: "RS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+              ),
+              instruction:
+                "Row 3 (RS): *K2, P2; repeat from * to end. (24 sts)",
+            },
+            {
+              num: 4,
+              side: "WS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+              ),
+              instruction:
+                "Row 4 (WS): *P2, K2; repeat from * to end. (24 sts)",
+            },
+            {
+              num: 5,
+              side: "RS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+              ),
+              instruction:
+                "Row 5 (RS): *K2, P2; repeat from * to end. (24 sts)",
+            },
+            {
+              num: 6,
+              side: "WS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+              ),
+              instruction:
+                "Row 6 (WS): *P2, K2; repeat from * to end. (24 sts)",
+            },
+            {
+              num: 7,
+              side: "RS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+              ),
+              instruction:
+                "Row 7 (RS): *K2, P2; repeat from * to end. (24 sts)",
+            },
+            {
+              num: 8,
+              side: "WS",
+              isRepeat: true,
+              repeatTotal: 8,
+              stitches: ms(
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+                "P",
+                2,
+                "K",
+                2,
+              ),
+              instruction:
+                "Row 8 (WS): *P2, K2; repeat from * to end. (24 sts)\nEnd of rib section. Brim should measure ~2 inches.",
+            },
+            {
+              num: 9,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("K", 24),
+              instruction:
+                "Row 9 (RS): Knit to end. (24 sts)\nBegin stockinette body.",
+            },
+            {
+              num: 10,
+              side: "WS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("P", 24),
+              instruction: "Row 10 (WS): Purl to end. (24 sts)",
+            },
+            {
+              num: 11,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("K", 24),
+              instruction: "Row 11 (RS): Knit to end. (24 sts)",
+            },
+            {
+              num: 12,
+              side: "WS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("P", 24),
+              instruction: "Row 12 (WS): Purl to end. (24 sts)",
+            },
+            {
+              num: 13,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: Array.from({ length: 12 }, () => ["K", "SL"]).flat(),
+              instruction:
+                "Row 13 (RS): *K1, Sl1 wyib; repeat from * to end. (24 sts)\nKeep yarn at back when slipping. Creates a subtle woven texture.",
+            },
+            {
+              num: 14,
+              side: "WS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("P", 24),
+              instruction: "Row 14 (WS): Purl to end. (24 sts)",
+            },
+            {
+              num: 15,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms(
+                "K",
+                2,
+                "YO",
+                1,
+                "K2TOG",
+                1,
+                "K",
+                2,
+                "YO",
+                1,
+                "K2TOG",
+                1,
+                "K",
+                2,
+                "YO",
+                1,
+                "K2TOG",
+                1,
+                "K",
+                2,
+                "YO",
+                1,
+                "K2TOG",
+                1,
+                "K",
+                2,
+                "YO",
+                1,
+                "K2TOG",
+                1,
+                "K",
+                2,
+                "YO",
+                1,
+                "K2TOG",
+                1,
+              ),
+              instruction:
+                "Row 15 (RS): *K2, YO, K2tog; repeat from * to end. (24 sts)\nDecorative eyelet row. YO and decrease cancel out — stitch count stays the same.",
+            },
+            {
+              num: 16,
+              side: "WS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("P", 24),
+              instruction:
+                "Row 16 (WS): Purl to end. (24 sts)\nWork the YO loops as normal purl stitches.",
+            },
+            {
+              num: 17,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms(
+                "K",
+                4,
+                "K2TOG",
+                1,
+                "K",
+                4,
+                "SSK",
+                1,
+                "K",
+                4,
+                "K2TOG",
+                1,
+                "K",
+                4,
+                "SSK",
+                1,
+              ),
+              instruction:
+                "Row 17 (RS): K4, K2tog, K4, SSK, K4, K2tog, K4, SSK. (20 sts)\nBegin crown shaping. Paired K2tog/SSK creates balanced mirror decreases.",
+            },
+            {
+              num: 18,
+              side: "WS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms("P", 20),
+              instruction: "Row 18 (WS): Purl to end. (20 sts)",
+            },
+            {
+              num: 19,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms(
+                "K",
+                3,
+                "K2TOG",
+                1,
+                "K",
+                3,
+                "SSK",
+                1,
+                "K",
+                3,
+                "K2TOG",
+                1,
+                "K",
+                3,
+                "SSK",
+                1,
+              ),
+              instruction:
+                "Row 19 (RS): K3, K2tog, K3, SSK, K3, K2tog, K3, SSK. (16 sts)",
+            },
+            {
+              num: 20,
+              side: "RS",
+              isRepeat: false,
+              repeatTotal: 0,
+              stitches: ms(
+                "K2TOG",
+                1,
+                "K2TOG",
+                1,
+                "K2TOG",
+                1,
+                "K2TOG",
+                1,
+                "SSK",
+                1,
+                "SSK",
+                1,
+                "SSK",
+                1,
+                "SSK",
+                1,
+              ),
+              instruction:
+                "Row 20 (RS): *K2tog; repeat from * to end. (8 sts)\nCut yarn ~12 inches. Thread tail through remaining 8 sts, pull tight, and secure.",
+            },
+          ],
+        },
+      ];
 
-// ── Grids ─────────────────────────────────────────────────────────────────
-// Architecture: each grid is an independent object on the canvas at (x, y).
-// Add more entries here to place additional patterns on the same canvas.
-const grids = [
-  {
-    id: 'g0', label: 'Ribbed Beanie',
-    x: 60, y: 60,
-    activeRow: 0,
-    pattern: [
-      { num:1,  side:'RS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
-        instruction: 'Row 1 (RS): *K2, P2; repeat from * to end. (24 sts)\nEstablishes the 2×2 rib that gives the brim its stretch.' },
-      { num:2,  side:'WS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
-        instruction: 'Row 2 (WS): *P2, K2; repeat from * to end. (24 sts)\nWork stitches as they appear — knit the knits, purl the purls.' },
-      { num:3,  side:'RS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
-        instruction: 'Row 3 (RS): *K2, P2; repeat from * to end. (24 sts)' },
-      { num:4,  side:'WS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
-        instruction: 'Row 4 (WS): *P2, K2; repeat from * to end. (24 sts)' },
-      { num:5,  side:'RS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
-        instruction: 'Row 5 (RS): *K2, P2; repeat from * to end. (24 sts)' },
-      { num:6,  side:'WS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
-        instruction: 'Row 6 (WS): *P2, K2; repeat from * to end. (24 sts)' },
-      { num:7,  side:'RS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2),
-        instruction: 'Row 7 (RS): *K2, P2; repeat from * to end. (24 sts)' },
-      { num:8,  side:'WS', isRepeat:true,  repeatTotal:8,
-        stitches: ms('P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2,'P',2,'K',2),
-        instruction: 'Row 8 (WS): *P2, K2; repeat from * to end. (24 sts)\nEnd of rib section. Brim should measure ~2 inches.' },
-      { num:9,  side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: ms('K',24),
-        instruction: 'Row 9 (RS): Knit to end. (24 sts)\nBegin stockinette body.' },
-      { num:10, side:'WS', isRepeat:false, repeatTotal:0,
-        stitches: ms('P',24),
-        instruction: 'Row 10 (WS): Purl to end. (24 sts)' },
-      { num:11, side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: ms('K',24),
-        instruction: 'Row 11 (RS): Knit to end. (24 sts)' },
-      { num:12, side:'WS', isRepeat:false, repeatTotal:0,
-        stitches: ms('P',24),
-        instruction: 'Row 12 (WS): Purl to end. (24 sts)' },
-      { num:13, side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: Array.from({length:12}, () => ['K','SL']).flat(),
-        instruction: 'Row 13 (RS): *K1, Sl1 wyib; repeat from * to end. (24 sts)\nKeep yarn at back when slipping. Creates a subtle woven texture.' },
-      { num:14, side:'WS', isRepeat:false, repeatTotal:0,
-        stitches: ms('P',24),
-        instruction: 'Row 14 (WS): Purl to end. (24 sts)' },
-      { num:15, side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: ms('K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1,'K',2,'YO',1,'K2TOG',1),
-        instruction: 'Row 15 (RS): *K2, YO, K2tog; repeat from * to end. (24 sts)\nDecorative eyelet row. YO and decrease cancel out — stitch count stays the same.' },
-      { num:16, side:'WS', isRepeat:false, repeatTotal:0,
-        stitches: ms('P',24),
-        instruction: 'Row 16 (WS): Purl to end. (24 sts)\nWork the YO loops as normal purl stitches.' },
-      { num:17, side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: ms('K',4,'K2TOG',1,'K',4,'SSK',1,'K',4,'K2TOG',1,'K',4,'SSK',1),
-        instruction: 'Row 17 (RS): K4, K2tog, K4, SSK, K4, K2tog, K4, SSK. (20 sts)\nBegin crown shaping. Paired K2tog/SSK creates balanced mirror decreases.' },
-      { num:18, side:'WS', isRepeat:false, repeatTotal:0,
-        stitches: ms('P',20),
-        instruction: 'Row 18 (WS): Purl to end. (20 sts)' },
-      { num:19, side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: ms('K',3,'K2TOG',1,'K',3,'SSK',1,'K',3,'K2TOG',1,'K',3,'SSK',1),
-        instruction: 'Row 19 (RS): K3, K2tog, K3, SSK, K3, K2tog, K3, SSK. (16 sts)' },
-      { num:20, side:'RS', isRepeat:false, repeatTotal:0,
-        stitches: ms('K2TOG',1,'K2TOG',1,'K2TOG',1,'K2TOG',1,'SSK',1,'SSK',1,'SSK',1,'SSK',1),
-        instruction: 'Row 20 (RS): *K2tog; repeat from * to end. (8 sts)\nCut yarn ~12 inches. Thread tail through remaining 8 sts, pull tight, and secure.' },
-    ],
-  },
-];
+      // ── State ─────────────────────────────────────────────────────────────────
+      let focusedGrid = 0;
+      let editMode = false;
+      let panelOpen = true;
+      let selectedCell = null; // { gi, ri, si } — the focused stitch cell
+      let notes = {}; // key: `${gi}_${ri}`
+      let repeatCounters = {}; // key: `${gi}_${ri}`
 
-// ── State ─────────────────────────────────────────────────────────────────
-let focusedGrid  = 0;
-let editMode     = false;
-let panelOpen    = true;
-let selectedCell = null; // { gi, ri, si } — the focused stitch cell
-let notes          = {}; // key: `${gi}_${ri}`
-let repeatCounters = {}; // key: `${gi}_${ri}`
+      // ── Canvas state ──────────────────────────────────────────────────────────
+      let cx = 0,
+        cy = 0,
+        cz = 1;
+      let isPanning = false,
+        panStart = { x: 0, y: 0 },
+        panOrigin = { x: 0, y: 0 };
 
-// ── Canvas state ──────────────────────────────────────────────────────────
-let cx = 0, cy = 0, cz = 1;
-let isPanning = false, panStart = {x:0,y:0}, panOrigin = {x:0,y:0};
+      const canvasWrap = document.getElementById("canvasWrap");
+      const canvasEl = document.getElementById("canvas");
 
-const canvasWrap = document.getElementById('canvasWrap');
-const canvasEl   = document.getElementById('canvas');
+      function applyTransform() {
+        canvasEl.style.transform = `translate(${cx}px,${cy}px) scale(${cz})`;
+        // Sync dot-grid background so it moves with the canvas
+        const sp = 24 * cz;
+        const ox = ((cx % sp) + sp) % sp;
+        const oy = ((cy % sp) + sp) % sp;
+        canvasWrap.style.backgroundSize = `${sp}px ${sp}px`;
+        canvasWrap.style.backgroundPosition = `${ox}px ${oy}px`;
+        document.getElementById("zoomLabel").textContent =
+          Math.round(cz * 100) + "%";
+      }
 
-function applyTransform() {
-  canvasEl.style.transform = `translate(${cx}px,${cy}px) scale(${cz})`;
-  // Sync dot-grid background so it moves with the canvas
-  const sp = 24 * cz;
-  const ox = ((cx % sp) + sp) % sp;
-  const oy = ((cy % sp) + sp) % sp;
-  canvasWrap.style.backgroundSize     = `${sp}px ${sp}px`;
-  canvasWrap.style.backgroundPosition = `${ox}px ${oy}px`;
-  document.getElementById('zoomLabel').textContent = Math.round(cz * 100) + '%';
-}
+      // ── Canvas events ─────────────────────────────────────────────────────────
+      canvasWrap.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest(".grid-obj")) return; // let grids handle their own clicks
+        if (selectedCell) {
+          selectedCell = null;
+          renderAllGrids();
+        }
+        isPanning = true;
+        panStart = { x: e.clientX, y: e.clientY };
+        panOrigin = { x: cx, y: cy };
+        canvasWrap.classList.add("panning");
+        e.preventDefault();
+      });
 
-// ── Canvas events ─────────────────────────────────────────────────────────
-canvasWrap.addEventListener('mousedown', e => {
-  if (e.button !== 0) return;
-  if (e.target.closest('.grid-obj')) return; // let grids handle their own clicks
-  if (selectedCell) { selectedCell = null; renderAllGrids(); }
-  isPanning = true;
-  panStart  = {x: e.clientX, y: e.clientY};
-  panOrigin = {x: cx, y: cy};
-  canvasWrap.classList.add('panning');
-  e.preventDefault();
-});
+      window.addEventListener("mousemove", (e) => {
+        if (!isPanning) return;
+        cx = panOrigin.x + e.clientX - panStart.x;
+        cy = panOrigin.y + e.clientY - panStart.y;
+        applyTransform();
+      });
 
-window.addEventListener('mousemove', e => {
-  if (!isPanning) return;
-  cx = panOrigin.x + e.clientX - panStart.x;
-  cy = panOrigin.y + e.clientY - panStart.y;
-  applyTransform();
-});
+      window.addEventListener("mouseup", () => {
+        if (isPanning) {
+          isPanning = false;
+          canvasWrap.classList.remove("panning");
+        }
+      });
 
-window.addEventListener('mouseup', () => {
-  if (isPanning) { isPanning = false; canvasWrap.classList.remove('panning'); }
-});
+      canvasWrap.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          if (e.ctrlKey) {
+            // Trackpad pinch or Ctrl+scroll → zoom
+            zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.013));
+          } else if (
+            e.deltaMode === 1 ||
+            (!e.deltaX && Math.abs(e.deltaY) >= 50)
+          ) {
+            // Mouse wheel (line-mode deltaMode=1, or large pixel delta with no X) → zoom
+            zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+          } else {
+            // Trackpad two-finger scroll → pan
+            cx -= e.deltaX;
+            cy -= e.deltaY;
+            applyTransform();
+          }
+        },
+        { passive: false },
+      );
 
-canvasWrap.addEventListener('wheel', e => {
-  e.preventDefault();
-  if (e.ctrlKey) {
-    // Trackpad pinch or Ctrl+scroll → zoom
-    zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.013));
-  } else if (e.deltaMode === 1 || (!e.deltaX && Math.abs(e.deltaY) >= 50)) {
-    // Mouse wheel (line-mode deltaMode=1, or large pixel delta with no X) → zoom
-    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1/1.12);
-  } else {
-    // Trackpad two-finger scroll → pan
-    cx -= e.deltaX;
-    cy -= e.deltaY;
-    applyTransform();
-  }
-}, { passive: false });
+      function zoomAt(clientX, clientY, factor) {
+        const newZ = Math.max(0.08, Math.min(5, cz * factor));
+        const rect = canvasWrap.getBoundingClientRect();
+        const px = clientX - rect.left;
+        const py = clientY - rect.top;
+        cx = px - (px - cx) * (newZ / cz);
+        cy = py - (py - cy) * (newZ / cz);
+        cz = newZ;
+        applyTransform();
+      }
 
-function zoomAt(clientX, clientY, factor) {
-  const newZ = Math.max(0.08, Math.min(5, cz * factor));
-  const rect = canvasWrap.getBoundingClientRect();
-  const px = clientX - rect.left;
-  const py = clientY - rect.top;
-  cx = px - (px - cx) * (newZ / cz);
-  cy = py - (py - cy) * (newZ / cz);
-  cz = newZ;
-  applyTransform();
-}
+      function zoomStep(dir) {
+        const rect = canvasWrap.getBoundingClientRect();
+        zoomAt(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+          dir > 0 ? 1.2 : 1 / 1.2,
+        );
+      }
 
-function zoomStep(dir) {
-  const rect = canvasWrap.getBoundingClientRect();
-  zoomAt(rect.left + rect.width/2, rect.top + rect.height/2, dir > 0 ? 1.2 : 1/1.2);
-}
+      function layoutGrids() {
+        // Auto-position grids with 100px gaps, left-to-right flow, wrapping at ROW_MAX_W.
+        // Must be called inside a requestAnimationFrame so offsetWidth/Height are available.
+        const GAP = 100,
+          START = 60,
+          ROW_MAX_W = 3200;
+        const els = Array.from(document.querySelectorAll(".grid-obj"));
+        if (!els.length) return;
+        let x = START,
+          y = START,
+          rowH = 0;
+        els.forEach((el, i) => {
+          const w = el.offsetWidth,
+            h = el.offsetHeight;
+          if (i > 0 && x + w > ROW_MAX_W) {
+            x = START;
+            y += rowH + GAP;
+            rowH = 0;
+          }
+          grids[i].x = x;
+          grids[i].y = y;
+          x += w + GAP;
+          rowH = Math.max(rowH, h);
+        });
+        renderAllGrids();
+        fitToView();
+      }
 
-function layoutGrids() {
-  // Auto-position grids with 100px gaps, left-to-right flow, wrapping at ROW_MAX_W.
-  // Must be called inside a requestAnimationFrame so offsetWidth/Height are available.
-  const GAP = 100, START = 60, ROW_MAX_W = 3200;
-  const els = Array.from(document.querySelectorAll('.grid-obj'));
-  if (!els.length) return;
-  let x = START, y = START, rowH = 0;
-  els.forEach((el, i) => {
-    const w = el.offsetWidth, h = el.offsetHeight;
-    if (i > 0 && x + w > ROW_MAX_W) { x = START; y += rowH + GAP; rowH = 0; }
-    grids[i].x = x;
-    grids[i].y = y;
-    x += w + GAP;
-    rowH = Math.max(rowH, h);
-  });
-  renderAllGrids();
-  fitToView();
-}
+      function fitToView() {
+        // Compute bounding box of all grid objects in canvas-space
+        const els = document.querySelectorAll(".grid-obj");
+        if (!els.length) return;
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        els.forEach((el, i) => {
+          const g = grids[i];
+          minX = Math.min(minX, g.x);
+          minY = Math.min(minY, g.y);
+          maxX = Math.max(maxX, g.x + el.offsetWidth);
+          maxY = Math.max(maxY, g.y + el.offsetHeight);
+        });
+        const pad = 64;
+        const cw = canvasWrap.offsetWidth;
+        const ch = canvasWrap.offsetHeight;
+        const bbW = maxX - minX,
+          bbH = maxY - minY;
+        cz = Math.min((cw - pad * 2) / bbW, (ch - pad * 2) / bbH, 2);
+        cx = cw / 2 - (minX + bbW / 2) * cz;
+        cy = ch / 2 - (minY + bbH / 2) * cz;
+        applyTransform();
+      }
 
-function fitToView() {
-  // Compute bounding box of all grid objects in canvas-space
-  const els = document.querySelectorAll('.grid-obj');
-  if (!els.length) return;
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  els.forEach((el, i) => {
-    const g = grids[i];
-    minX = Math.min(minX, g.x);
-    minY = Math.min(minY, g.y);
-    maxX = Math.max(maxX, g.x + el.offsetWidth);
-    maxY = Math.max(maxY, g.y + el.offsetHeight);
-  });
-  const pad = 64;
-  const cw = canvasWrap.offsetWidth;
-  const ch = canvasWrap.offsetHeight;
-  const bbW = maxX - minX, bbH = maxY - minY;
-  cz = Math.min((cw - pad*2) / bbW, (ch - pad*2) / bbH, 2);
-  cx = cw/2 - (minX + bbW/2) * cz;
-  cy = ch/2 - (minY + bbH/2) * cz;
-  applyTransform();
-}
+      // ── Rendering ─────────────────────────────────────────────────────────────
+      function renderAllGrids() {
+        canvasEl.innerHTML = grids
+          .map((g, gi) => renderGridHTML(g, gi))
+          .join("");
+      }
 
-// ── Rendering ─────────────────────────────────────────────────────────────
-function renderAllGrids() {
-  canvasEl.innerHTML = grids.map((g, gi) => renderGridHTML(g, gi)).join('');
-}
+      function renderGridHTML(g, gi) {
+        const focused = gi === focusedGrid;
+        const maxSt = Math.max(
+          ...g.pattern.filter((r) => !r.kind).map((r) => r.stitches.length),
+        );
 
-function renderGridHTML(g, gi) {
-  const focused = gi === focusedGrid;
-  const maxSt = Math.max(...g.pattern.map(r => r.stitches.length));
+        // Column headers
+        // Spacer width: 2 sidebar-cells (28px each) + dir-arrow (20px) + 3×3px gaps = 85px
+        let colHdr = `<div style="width:85px;flex-shrink:0;"></div>`;
+        for (let i = 1; i <= maxSt; i++) {
+          if (i > 1) colHdr += `<div style="width:3px;flex-shrink:0;"></div>`;
+          colHdr += `<div class="col-label">${i}</div>`;
+        }
 
-  // Column headers
-  // Spacer width: 2 sidebar-cells (28px each) + dir-arrow (20px) + 3×3px gaps = 85px
-  let colHdr = `<div style="width:85px;flex-shrink:0;"></div>`;
-  for (let i = 1; i <= maxSt; i++) {
-    if (i > 1) colHdr += `<div style="width:3px;flex-shrink:0;"></div>`;
-    colHdr += `<div class="col-label">${i}</div>`;
-  }
+        // Rows
+        let rows = "";
+        g.pattern.forEach((patItem, ri) => {
+          // ── Vertical dot separator ──
+          if (patItem.kind === "vdot") {
+            const sel =
+              selectedCell && selectedCell.gi === gi && selectedCell.ri === ri;
+            rows += `<div class="vdot-row${sel ? " selected" : ""}"
+              onclick="event.stopPropagation();selectVDot(${gi},${ri})">
+              <span class="vdot-dots">···</span>
+            </div>`;
+            return;
+          }
 
-  // Rows
-  let rows = '';
-  g.pattern.forEach((row, ri) => {
-    const active = ri === g.activeRow;
-    rows += `<div class="row-wrap${active?' active':''}" onclick="selectRow(${gi},${ri})">`;
-    rows += `<div class="sidebar-cell">${row.num}</div>`;
-    rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${row.stitches.length}</div>`;
-    rows += `<div class="dir-arrow">${row.side==='RS'?'←':'→'}</div>`;
-    const display = row.side==='RS' ? [...row.stitches].reverse() : row.stitches;
-    display.forEach((st, si) => {
-      const cfg = SC[st] || SC.K;
-      const ec  = editMode ? ' editable' : '';
-      const ri2 = row.side==='RS' ? row.stitches.length-1-si : si;
-      const sel = selectedCell && selectedCell.gi===gi && selectedCell.ri===ri && selectedCell.si===ri2 ? ' selected' : '';
-      if (si > 0) rows += `<div style="width:3px;flex-shrink:0;"></div>`;
-      rows += `<div class="stitch-cell${ec}${sel}"
-        style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
-        title="${cfg.desc}"
-        onclick="event.stopPropagation();selectCell(${gi},${ri},${ri2})">
-        ${cfg.symbol}</div>`;
-    });
-    rows += `</div>`;
-  });
+          // ── Normal stitch row ──
+          const row = patItem;
+          const active =
+            ri === g.activeRow ||
+            (selectedCell && selectedCell.gi === gi && selectedCell.ri === ri);
+          rows += `<div class="row-wrap${active ? " active" : ""}" onclick="selectRow(${gi},${ri})">`;
+          rows += `<div class="sidebar-cell">${row.num}</div>`;
+          rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${row.stitches.filter((s) => s !== "HDOT").length}</div>`;
+          rows += `<div class="dir-arrow">${row.side === "RS" ? "←" : "→"}</div>`;
+          const display =
+            row.side === "RS" ? [...row.stitches].reverse() : row.stitches;
+          display.forEach((st, di) => {
+            const si = row.side === "RS" ? row.stitches.length - 1 - di : di;
+            if (di > 0) rows += `<div style="width:3px;flex-shrink:0;"></div>`;
+            if (st === "HDOT") {
+              const sel =
+                selectedCell &&
+                selectedCell.gi === gi &&
+                selectedCell.ri === ri &&
+                selectedCell.si === si
+                  ? " selected"
+                  : "";
+              rows += `<div class="stitch-ellipsis${sel}"
+                onclick="event.stopPropagation();selectCell(${gi},${ri},${si})">···</div>`;
+            } else {
+              const cfg = SC[st] || SC.K;
+              const ec = editMode ? " editable" : "";
+              const sel =
+                selectedCell &&
+                selectedCell.gi === gi &&
+                selectedCell.ri === ri &&
+                selectedCell.si === si
+                  ? " selected"
+                  : "";
+              rows += `<div class="stitch-cell${ec}${sel}"
+                style="background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
+                title="${cfg.desc}"
+                onclick="event.stopPropagation();selectCell(${gi},${ri},${si})">
+                ${cfg.symbol}</div>`;
+            }
+          });
+          rows += `</div>`;
+        });
 
-  return `
+        return `
     <div class="grid-obj" style="left:${g.x}px;top:${g.y}px;" data-gi="${gi}"
          onclick="focusGrid(${gi})">
       <div class="grid-label">
@@ -659,34 +1675,41 @@ function renderGridHTML(g, gi) {
         <button class="grid-del" title="Delete grid"
           onclick="event.stopPropagation();deleteGrid(${gi})">×</button>
       </div>
-      <div class="chart-card${focused?' focused':''}">
+      <div class="chart-card${focused ? " focused" : ""}">
         <div style="display:flex;margin-bottom:4px;">${colHdr}</div>
         <div>${rows}</div>
       </div>
     </div>`;
-}
+      }
 
-function renderSidePanel() {
-  const g   = grids[focusedGrid];
-  const row = g.pattern[g.activeRow];
-  document.getElementById('currentRowDisplay').textContent = row.num;
-  document.getElementById('panelTitle').textContent        = `Row ${row.num}`;
-  document.getElementById('rowSideLabel').textContent      = `${row.side} · read ${row.side==='RS'?'←':'→'}`;
-  document.getElementById('rowInstruction').textContent    = row.instruction;
-  document.getElementById('notesRowLabel').textContent     = row.num;
-  document.getElementById('notesInput').value = notes[`${focusedGrid}_${g.activeRow}`] || '';
-  renderRepeat();
-}
+      function renderSidePanel() {
+        const g = grids[focusedGrid];
+        const row = g.pattern[g.activeRow];
+        if (!row || row.kind === "vdot") return;
+        document.getElementById("currentRowDisplay").textContent = row.num;
+        document.getElementById("panelTitle").textContent = `Row ${row.num}`;
+        document.getElementById("rowSideLabel").textContent =
+          `${row.side} · read ${row.side === "RS" ? "←" : "→"}`;
+        document.getElementById("rowInstruction").textContent = row.instruction;
+        document.getElementById("notesRowLabel").textContent = row.num;
+        document.getElementById("notesInput").value =
+          notes[`${focusedGrid}_${g.activeRow}`] || "";
+        renderRepeat();
+      }
 
-function renderRepeat() {
-  const g   = grids[focusedGrid];
-  const row = g.pattern[g.activeRow];
-  const el  = document.getElementById('repeatSection');
-  if (!row.isRepeat) { el.innerHTML = ''; return; }
-  const key = `${focusedGrid}_${g.activeRow}`;
-  if (!(key in repeatCounters)) repeatCounters[key] = 1;
-  const cur = repeatCounters[key], tot = row.repeatTotal;
-  el.innerHTML = `
+      function renderRepeat() {
+        const g = grids[focusedGrid];
+        const row = g.pattern[g.activeRow];
+        const el = document.getElementById("repeatSection");
+        if (!row.isRepeat) {
+          el.innerHTML = "";
+          return;
+        }
+        const key = `${focusedGrid}_${g.activeRow}`;
+        if (!(key in repeatCounters)) repeatCounters[key] = 1;
+        const cur = repeatCounters[key],
+          tot = row.repeatTotal;
+        el.innerHTML = `
     <label class="field-label">Repeat count</label>
     <div class="repeat-row">
       <button class="repeat-btn" onclick="changeRepeat(-1)">−</button>
@@ -695,257 +1718,393 @@ function renderRepeat() {
       <button class="repeat-btn" onclick="changeRepeat(1)">+</button>
     </div>
     <button class="repeat-reset" onclick="resetRepeat()">reset</button>`;
-}
+      }
 
-function renderLegend() {
-  document.getElementById('legend').innerHTML = STITCH_TYPES.map(st => {
-    const c = SC[st];
-    return `<div class="legend-item">
+      function renderLegend() {
+        document.getElementById("legend").innerHTML = STITCH_TYPES.map((st) => {
+          const c = SC[st];
+          return `<div class="legend-item">
       <div class="stitch-cell" style="background:${c.bg};border-color:${c.border};color:${c.text};">${c.symbol}</div>
       <span class="legend-name">${c.label}</span>
       <span class="legend-desc">${c.desc}</span>
     </div>`;
-  }).join('');
-}
-
-function renderMeta() {
-  const g = grids[focusedGrid];
-  const totalRows = g.pattern.length;
-  const stitchCounts = g.pattern.map(r => r.stitches.length);
-  const minSt = Math.min(...stitchCounts);
-  const maxSt = Math.max(...stitchCounts);
-  const stRange = minSt === maxSt ? `${minSt} sts` : `${minSt}–${maxSt} sts`;
-  const rows = [
-    ['Pattern', g.label],
-    ['Rows', totalRows],
-    ['Stitches', stRange],
-  ];
-  document.getElementById('metaContent').innerHTML = rows
-    .map(([k, v]) => `<span class="meta-key">${k}</span><span class="meta-val">${v}</span>`)
-    .join('');
-}
-
-function render() { renderAllGrids(); renderSidePanel(); renderMeta(); }
-
-// ── Actions ───────────────────────────────────────────────────────────────
-function selectCell(gi, ri, si) {
-  if (!editMode) return;
-  const alreadySelected = selectedCell && selectedCell.gi===gi && selectedCell.ri===ri && selectedCell.si===si;
-  selectedCell = { gi, ri, si };
-  focusedGrid = gi;
-  grids[gi].activeRow = ri;
-  renderSidePanel();
-  if (alreadySelected) {
-    cycleStitch(gi, ri, si);
-  } else {
-    renderAllGrids();
-  }
-}
-
-function deleteGrid(gi) {
-  if (grids.length === 1) return; // always keep at least one grid
-  grids.splice(gi, 1);
-  focusedGrid = Math.min(focusedGrid, grids.length - 1);
-  render();
-}
-
-function focusGrid(gi) {
-  if (focusedGrid === gi) return;
-  focusedGrid = gi;
-  render();
-}
-
-function selectRow(gi, ri) {
-  selectedCell = null;
-  focusedGrid = gi;
-  grids[gi].activeRow = ri;
-  render();
-}
-
-function toggleEditMode() {
-  editMode = !editMode;
-  if (!editMode) { selectedCell = null; renderAllGrids(); }
-  const btn = document.getElementById('editModeBtn');
-  btn.textContent = `Edit Mode: ${editMode ? 'ON' : 'OFF'}`;
-  btn.classList.toggle('active', editMode);
-  document.getElementById('editControls').classList.toggle('hidden', !editMode);
-  renderAllGrids();
-}
-
-function cycleStitch(gi, ri, si) {
-  if (!editMode) return;
-  const st = grids[gi].pattern[ri].stitches[si];
-  grids[gi].pattern[ri].stitches[si] = STITCH_TYPES[(STITCH_TYPES.indexOf(st)+1) % STITCH_TYPES.length];
-  renderAllGrids();
-}
-
-function addStitch() {
-  grids[focusedGrid].pattern[grids[focusedGrid].activeRow].stitches.push('K');
-  render();
-}
-
-function removeStitch() {
-  const row = grids[focusedGrid].pattern[grids[focusedGrid].activeRow];
-  if (row.stitches.length > 1) row.stitches.pop();
-  render();
-}
-
-function addRowBelow() {
-  const g = grids[focusedGrid];
-  const cur = g.pattern[g.activeRow];
-  g.pattern.splice(g.activeRow + 1, 0, {
-    num: cur.num + 0.5,
-    side: cur.side === 'RS' ? 'WS' : 'RS',
-    isRepeat: false, repeatTotal: 0,
-    stitches: ms('K', cur.stitches.length),
-    instruction: 'New row — edit instruction here.',
-  });
-  g.pattern.forEach((r, i) => { r.num = i + 1; });
-  g.activeRow += 1;
-  render();
-}
-
-function deleteCurrentRow() {
-  const g = grids[focusedGrid];
-  if (g.pattern.length === 1) return;
-  g.pattern.splice(g.activeRow, 1);
-  g.pattern.forEach((r, i) => { r.num = i + 1; });
-  if (g.activeRow >= g.pattern.length) g.activeRow = g.pattern.length - 1;
-  render();
-}
-
-function saveNote() {
-  notes[`${focusedGrid}_${grids[focusedGrid].activeRow}`] = document.getElementById('notesInput').value;
-}
-
-function changeRepeat(delta) {
-  const g = grids[focusedGrid];
-  if (!g.pattern[g.activeRow].isRepeat) return;
-  const key = `${focusedGrid}_${g.activeRow}`;
-  if (!(key in repeatCounters)) repeatCounters[key] = 1;
-  repeatCounters[key] = Math.max(1, Math.min(repeatCounters[key] + delta, g.pattern[g.activeRow].repeatTotal));
-  renderRepeat();
-}
-
-function resetRepeat() {
-  repeatCounters[`${focusedGrid}_${grids[focusedGrid].activeRow}`] = 1;
-  renderRepeat();
-}
-
-// ── Panel toggle ──────────────────────────────────────────────────────────
-function openPanel() {
-  panelOpen = true;
-  document.getElementById('rightPanel').classList.remove('collapsed');
-  document.getElementById('panelOpenBtn').classList.remove('visible');
-}
-
-function closePanel() {
-  panelOpen = false;
-  document.getElementById('rightPanel').classList.add('collapsed');
-  document.getElementById('panelOpenBtn').classList.add('visible');
-}
-
-// ── Keyboard ──────────────────────────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-  const g = grids[focusedGrid];
-
-  // Escape always clears cell selection
-  if (e.key === 'Escape' && selectedCell) {
-    e.preventDefault();
-    selectedCell = null;
-    renderAllGrids();
-    return;
-  }
-
-  // Cell-level actions when in edit mode with a selected cell
-  if (editMode && selectedCell) {
-    const { gi, ri, si } = selectedCell;
-    const row = grids[gi].pattern[ri];
-    const stitches = row.stitches;
-    const isRS = row.side === 'RS';
-    // Visual position: 0 = leftmost on screen
-    const visualPos = isRS ? (stitches.length - 1 - si) : si;
-
-    // WASD cell navigation
-    if (e.key === 'a' || e.key === 'A') {
-      e.preventDefault();
-      const newVis = Math.max(0, visualPos - 1);
-      selectedCell = { gi, ri, si: isRS ? (stitches.length - 1 - newVis) : newVis };
-      renderAllGrids(); return;
-    }
-    if (e.key === 'd' || e.key === 'D') {
-      e.preventDefault();
-      const newVis = Math.min(stitches.length - 1, visualPos + 1);
-      selectedCell = { gi, ri, si: isRS ? (stitches.length - 1 - newVis) : newVis };
-      renderAllGrids(); return;
-    }
-    if (e.key === 'w' || e.key === 'W') {
-      e.preventDefault();
-      if (ri > 0) {
-        const newRi = ri - 1;
-        const newRow = grids[gi].pattern[newRi];
-        const newIsRS = newRow.side === 'RS';
-        const clampedVis = Math.min(visualPos, newRow.stitches.length - 1);
-        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : clampedVis };
-        grids[gi].activeRow = newRi;
-        renderSidePanel(); renderAllGrids();
+        }).join("");
       }
-      return;
-    }
-    if (e.key === 's' || e.key === 'S') {
-      e.preventDefault();
-      if (ri < grids[gi].pattern.length - 1) {
-        const newRi = ri + 1;
-        const newRow = grids[gi].pattern[newRi];
-        const newIsRS = newRow.side === 'RS';
-        const clampedVis = Math.min(visualPos, newRow.stitches.length - 1);
-        selectedCell = { gi, ri: newRi, si: newIsRS ? (newRow.stitches.length - 1 - clampedVis) : clampedVis };
-        grids[gi].activeRow = newRi;
-        renderSidePanel(); renderAllGrids();
+
+      function renderMeta() {
+        const g = grids[focusedGrid];
+        const totalRows = g.pattern.length;
+        const stitchCounts = g.pattern.map((r) => r.stitches.length);
+        const minSt = Math.min(...stitchCounts);
+        const maxSt = Math.max(...stitchCounts);
+        const stRange =
+          minSt === maxSt ? `${minSt} sts` : `${minSt}–${maxSt} sts`;
+        const rows = [
+          ["Pattern", g.label],
+          ["Rows", totalRows],
+          ["Stitches", stRange],
+        ];
+        document.getElementById("metaContent").innerHTML = rows
+          .map(
+            ([k, v]) =>
+              `<span class="meta-key">${k}</span><span class="meta-val">${v}</span>`,
+          )
+          .join("");
       }
-      return;
-    }
 
-    // Space: cycle stitch type
-    if (e.key === ' ') {
-      e.preventDefault();
-      cycleStitch(gi, ri, si); return;
-    }
-
-    // +/= : insert new K stitch after selected, select it
-    if (e.key === '+' || e.key === '=') {
-      e.preventDefault();
-      stitches.splice(si + 1, 0, 'K');
-      selectedCell = { gi, ri, si: si + 1 };
-      render(); return;
-    }
-
-    // Delete/Backspace: remove stitch, auto-select next (or last)
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      e.preventDefault();
-      if (stitches.length > 1) {
-        stitches.splice(si, 1);
-        selectedCell = { gi, ri, si: Math.min(si, stitches.length - 1) };
+      function render() {
+        renderAllGrids();
+        renderSidePanel();
+        renderMeta();
       }
-      render(); return;
-    }
 
-    return; // consume all other keys while a cell is selected in edit mode
-  }
+      // ── Actions ───────────────────────────────────────────────────────────────
+      function selectCell(gi, ri, si) {
+        if (!editMode) return;
+        const alreadySelected =
+          selectedCell &&
+          selectedCell.gi === gi &&
+          selectedCell.ri === ri &&
+          selectedCell.si === si;
+        selectedCell = { gi, ri, si };
+        focusedGrid = gi;
+        grids[gi].activeRow = ri;
+        renderSidePanel();
+        if (alreadySelected) {
+          cycleStitch(gi, ri, si);
+        } else {
+          renderAllGrids();
+        }
+      }
 
-  // Row-level navigation (arrow keys, no cell selected)
-  if (e.key === 'ArrowUp' && g.activeRow > 0) {
-    e.preventDefault(); selectRow(focusedGrid, g.activeRow - 1);
-  } else if (e.key === 'ArrowDown' && g.activeRow < g.pattern.length - 1) {
-    e.preventDefault(); selectRow(focusedGrid, g.activeRow + 1);
-  }
-});
+      function deleteGrid(gi) {
+        if (grids.length === 1) return; // always keep at least one grid
+        grids.splice(gi, 1);
+        focusedGrid = Math.min(focusedGrid, grids.length - 1);
+        render();
+      }
 
-// ── Init ──────────────────────────────────────────────────────────────────
-renderLegend();
-render();
-requestAnimationFrame(grids.length > 1 ? layoutGrids : fitToView);
-</script>
-</body>
+      function focusGrid(gi) {
+        if (focusedGrid === gi) return;
+        focusedGrid = gi;
+        render();
+      }
+
+      function selectRow(gi, ri) {
+        selectedCell = null;
+        focusedGrid = gi;
+        grids[gi].activeRow = ri;
+        render();
+      }
+
+      function toggleEditMode() {
+        editMode = !editMode;
+        if (editMode) {
+          const g = grids[focusedGrid];
+          const row = g.pattern[g.activeRow];
+          if (row && !row.kind) {
+            // Auto-select the first visual stitch (leftmost on screen)
+            const si = row.side === "RS" ? row.stitches.length - 1 : 0;
+            selectedCell = { gi: focusedGrid, ri: g.activeRow, si };
+          }
+        } else {
+          selectedCell = null;
+        }
+        const btn = document.getElementById("editModeBtn");
+        btn.textContent = `Edit Mode: ${editMode ? "ON" : "OFF"}`;
+        btn.classList.toggle("active", editMode);
+        document
+          .getElementById("editControls")
+          .classList.toggle("hidden", !editMode);
+        renderAllGrids();
+      }
+
+      function cycleStitch(gi, ri, si) {
+        if (!editMode) return;
+        const st = grids[gi].pattern[ri].stitches[si];
+        grids[gi].pattern[ri].stitches[si] =
+          STITCH_TYPES[(STITCH_TYPES.indexOf(st) + 1) % STITCH_TYPES.length];
+        renderAllGrids();
+      }
+
+      function addStitch() {
+        grids[focusedGrid].pattern[grids[focusedGrid].activeRow].stitches.push(
+          "K",
+        );
+        render();
+      }
+
+      function removeStitch() {
+        const row = grids[focusedGrid].pattern[grids[focusedGrid].activeRow];
+        if (row.stitches.length > 1) row.stitches.pop();
+        render();
+      }
+
+      function addRowBelow() {
+        const g = grids[focusedGrid];
+        const cur = g.pattern[g.activeRow];
+        g.pattern.splice(g.activeRow + 1, 0, {
+          num: cur.num + 0.5,
+          side: cur.side === "RS" ? "WS" : "RS",
+          isRepeat: false,
+          repeatTotal: 0,
+          stitches: ms("K", cur.stitches.length),
+          instruction: "New row — edit instruction here.",
+        });
+        g.pattern.forEach((r, i) => {
+          r.num = i + 1;
+        });
+        g.activeRow += 1;
+        render();
+      }
+
+      function deleteCurrentRow() {
+        const g = grids[focusedGrid];
+        if (g.pattern.length === 1) return;
+        g.pattern.splice(g.activeRow, 1);
+        g.pattern.forEach((r, i) => {
+          r.num = i + 1;
+        });
+        if (g.activeRow >= g.pattern.length) g.activeRow = g.pattern.length - 1;
+        render();
+      }
+
+      function saveNote() {
+        notes[`${focusedGrid}_${grids[focusedGrid].activeRow}`] =
+          document.getElementById("notesInput").value;
+      }
+
+      function changeRepeat(delta) {
+        const g = grids[focusedGrid];
+        if (!g.pattern[g.activeRow].isRepeat) return;
+        const key = `${focusedGrid}_${g.activeRow}`;
+        if (!(key in repeatCounters)) repeatCounters[key] = 1;
+        repeatCounters[key] = Math.max(
+          1,
+          Math.min(
+            repeatCounters[key] + delta,
+            g.pattern[g.activeRow].repeatTotal,
+          ),
+        );
+        renderRepeat();
+      }
+
+      function resetRepeat() {
+        repeatCounters[`${focusedGrid}_${grids[focusedGrid].activeRow}`] = 1;
+        renderRepeat();
+      }
+
+      // ── Panel toggle ──────────────────────────────────────────────────────────
+      function openPanel() {
+        panelOpen = true;
+        document.getElementById("rightPanel").classList.remove("collapsed");
+        document.getElementById("panelOpenBtn").classList.remove("visible");
+      }
+
+      function closePanel() {
+        panelOpen = false;
+        document.getElementById("rightPanel").classList.add("collapsed");
+        document.getElementById("panelOpenBtn").classList.add("visible");
+      }
+
+      function selectVDot(gi, ri) {
+        if (!editMode) return;
+        selectedCell = { gi, ri, si: null };
+        focusedGrid = gi;
+        grids[gi].activeRow = ri;
+        renderAllGrids();
+      }
+
+      // ── Keyboard ──────────────────────────────────────────────────────────────
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT")
+          return;
+        const g = grids[focusedGrid];
+
+        // Escape always clears cell selection
+        if (e.key === "Escape" && selectedCell) {
+          e.preventDefault();
+          selectedCell = null;
+          renderAllGrids();
+          return;
+        }
+
+        // ── All edit-mode actions (WASD works with or without selectedCell) ──
+        if (editMode) {
+          const gi = focusedGrid;
+          const curRi = selectedCell ? selectedCell.ri : g.activeRow;
+          const curPatItem = g.pattern[curRi];
+          const isOnVDot = curPatItem && curPatItem.kind === "vdot";
+
+          // Resolve current visual column position, preserved across vdot rows via lastVis
+          let curVis = 0;
+          if (!isOnVDot && selectedCell && selectedCell.si !== null) {
+            curVis =
+              curPatItem.side === "RS"
+                ? curPatItem.stitches.length - 1 - selectedCell.si
+                : selectedCell.si;
+          } else if (selectedCell && selectedCell.lastVis !== undefined) {
+            curVis = selectedCell.lastVis;
+          }
+
+          // ── W: move up ──
+          if (e.key === "w" || e.key === "W") {
+            e.preventDefault();
+            if (curRi > 0) {
+              const newRi = curRi - 1;
+              const newItem = g.pattern[newRi];
+              if (newItem.kind === "vdot") {
+                selectedCell = { gi, ri: newRi, si: null, lastVis: curVis };
+              } else {
+                const cv = Math.min(curVis, newItem.stitches.length - 1);
+                selectedCell = {
+                  gi,
+                  ri: newRi,
+                  si:
+                    newItem.side === "RS"
+                      ? newItem.stitches.length - 1 - cv
+                      : cv,
+                };
+              }
+              g.activeRow = newRi;
+              renderSidePanel();
+              renderAllGrids();
+            }
+            return;
+          }
+
+          // ── S: move down ──
+          if (e.key === "s" || e.key === "S") {
+            e.preventDefault();
+            if (curRi < g.pattern.length - 1) {
+              const newRi = curRi + 1;
+              const newItem = g.pattern[newRi];
+              if (newItem.kind === "vdot") {
+                selectedCell = { gi, ri: newRi, si: null, lastVis: curVis };
+              } else {
+                const cv = Math.min(curVis, newItem.stitches.length - 1);
+                selectedCell = {
+                  gi,
+                  ri: newRi,
+                  si:
+                    newItem.side === "RS"
+                      ? newItem.stitches.length - 1 - cv
+                      : cv,
+                };
+              }
+              g.activeRow = newRi;
+              renderSidePanel();
+              renderAllGrids();
+            }
+            return;
+          }
+
+          // ── V: insert vertical dot separator after current row ──
+          if (e.key === "v" || e.key === "V") {
+            e.preventDefault();
+            g.pattern.splice(curRi + 1, 0, { kind: "vdot" });
+            renderAllGrids();
+            return;
+          }
+
+          // ── Delete/Backspace on vdot row ──
+          if (
+            isOnVDot &&
+            selectedCell &&
+            (e.key === "Delete" || e.key === "Backspace")
+          ) {
+            e.preventDefault();
+            g.pattern.splice(curRi, 1);
+            selectedCell = null;
+            renderAllGrids();
+            return;
+          }
+
+          // ── Actions requiring a stitch cell selected ──
+          if (!isOnVDot && selectedCell && selectedCell.si !== null) {
+            const { si } = selectedCell;
+            const stitches = curPatItem.stitches;
+            const isRS = curPatItem.side === "RS";
+
+            if (e.key === "a" || e.key === "A") {
+              e.preventDefault();
+              const nv = Math.max(0, curVis - 1);
+              selectedCell = {
+                gi,
+                ri: curRi,
+                si: isRS ? stitches.length - 1 - nv : nv,
+              };
+              renderAllGrids();
+              return;
+            }
+            if (e.key === "d" || e.key === "D") {
+              e.preventDefault();
+              const nv = Math.min(stitches.length - 1, curVis + 1);
+              selectedCell = {
+                gi,
+                ri: curRi,
+                si: isRS ? stitches.length - 1 - nv : nv,
+              };
+              renderAllGrids();
+              return;
+            }
+            if (e.key === " ") {
+              e.preventDefault();
+              if (stitches[si] !== "HDOT") cycleStitch(gi, curRi, si);
+              return;
+            }
+            if (e.key === "+" || e.key === "=") {
+              e.preventDefault();
+              stitches.splice(si + 1, 0, "K");
+              selectedCell = { gi, ri: curRi, si: si + 1 };
+              render();
+              return;
+            }
+            if (e.key === "h" || e.key === "H") {
+              e.preventDefault();
+              const idx = curPatItem.side === "RS" ? si : si + 1;
+              stitches.splice(idx, 0, "HDOT");
+              selectedCell = { gi, ri: curRi, si: idx };
+              renderAllGrids();
+              return;
+            }
+            if (e.key === "Delete" || e.key === "Backspace") {
+              e.preventDefault();
+              if (stitches[si] === "HDOT" || stitches.length > 1) {
+                stitches.splice(si, 1);
+                selectedCell = {
+                  gi,
+                  ri: curRi,
+                  si: Math.min(si, stitches.length - 1),
+                };
+                stitches[selectedCell.si] === "HDOT"
+                  ? renderAllGrids()
+                  : render();
+              }
+              return;
+            }
+          }
+
+          return; // consume all other keys in edit mode
+        }
+
+        // ── Non-edit mode: arrow key row navigation ──
+        if (e.key === "ArrowUp" && g.activeRow > 0) {
+          e.preventDefault();
+          selectRow(focusedGrid, g.activeRow - 1);
+        } else if (
+          e.key === "ArrowDown" &&
+          g.activeRow < g.pattern.length - 1
+        ) {
+          e.preventDefault();
+          selectRow(focusedGrid, g.activeRow + 1);
+        }
+      });
+
+      // ── Init ──────────────────────────────────────────────────────────────────
+      renderLegend();
+      render();
+      requestAnimationFrame(grids.length > 1 ? layoutGrids : fitToView);
+    </script>
+  </body>
 </html>

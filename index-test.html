@@ -1593,7 +1593,9 @@
 
       function renderGridHTML(g, gi) {
         const focused = gi === focusedGrid;
-        const maxSt = Math.max(...g.pattern.filter(r => !r.kind).map((r) => r.stitches.length));
+        const maxSt = g.pattern.filter(r => !r.kind).length > 0
+          ? Math.max(...g.pattern.filter(r => !r.kind).map(r => r.stitches.filter(s => s !== 'HDOT').length))
+          : 0;
 
         // Column headers
         // Spacer width: 2 sidebar-cells (28px each) + dir-arrow (20px) + 3×3px gaps = 85px
@@ -1618,11 +1620,14 @@
 
           // ── Normal stitch row ──
           const row = patItem;
+          const rowSt = row.stitches.filter(s => s !== 'HDOT').length;
+          const offset = (maxSt - rowSt) * 18.5;
           const active = ri === g.activeRow || (selectedCell && selectedCell.gi === gi && selectedCell.ri === ri);
           rows += `<div class="row-wrap${active ? " active" : ""}" onclick="selectRow(${gi},${ri})">`;
           rows += `<div class="sidebar-cell">${row.num}</div>`;
-          rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${row.stitches.filter(s => s !== 'HDOT').length}</div>`;
+          rows += `<div class="sidebar-cell" style="font-size:11px;font-weight:500;color:var(--text-tertiary)">${rowSt}</div>`;
           rows += `<div class="dir-arrow">${row.side === "RS" ? "←" : "→"}</div>`;
+          rows += `<div style="display:flex;align-items:center;margin-left:${offset}px;">`;
           const display = row.side === "RS" ? [...row.stitches].reverse() : row.stitches;
           display.forEach((st, di) => {
             const si = row.side === "RS" ? row.stitches.length - 1 - di : di;
@@ -1642,6 +1647,7 @@
                 ${cfg.symbol}</div>`;
             }
           });
+          rows += `</div>`;
           rows += `</div>`;
         });
 
