@@ -58,13 +58,18 @@ Render the mockup from real data, read-only. No persistence, no editing.
 - [x] 1.3 **Seed data** — `patterns/luoshen-vest.json` (Lace border section, all three block
       types), meta + sizes from the PDF, 图表1 size-variant crops in `public/charts/luoshen/`.
       Validated: resolves to size-2 numbers matching the mockup.
-- [ ] 1.4 **App shell** — `App.svelte` layout: header (title + size/lang chips), left sidebar
-      region, main content region. Static, no logic yet.
-- [ ] 1.5 **SectionList** — `lib/SectionList.svelte`, lists section names, tracks selected (local).
-- [ ] 1.6 **CounterBlock** — `lib/blocks/CounterBlock.svelte`, renders a plain row from block data
-      (label + resolved number). No ticking yet — display only.
-- [ ] 1.7 **ChartBlock** — `lib/blocks/ChartBlock.svelte`, adapt the prototype to take block data
-      (image src, row count, repeat count).
+- [x] 1.4 **App shell** — `App.svelte`: header (title + resolved size/lang chips), sidebar +
+      main regions, loads `luoshen-vest.json`. Theme tokens in `app.css`. Server pinned to :5175.
+- [x] 1.5 **SectionList** — `lib/SectionList.svelte`, lists sections (name + 原文), tracks selected.
+- [x] 1.6 **CounterBlock** — `lib/blocks/CounterBlock.svelte`, old-app row style: `[#][←/→]text`,
+      resolved numbers, target, kind/grid tags, active highlight. (grid routed here until 1.8.)
+- [x] 1.7 **ChartBlock** — `lib/blocks/ChartBlock.svelte`, chart-card with the row-band overlay,
+      per-size image, repeat counter, calibrate. Verified stepping the band on real 图表1.
+- [~] 1.10 partial — block loop wired into `App.svelte` (theme retuned to match old index.html).
+- [~] 1.9 partial — bilingual EN/中文 shown inline per row (source text); a dedicated panel may
+      still come. Language chip toggles EN / 中文 / both.
+- [~] 2.4 + 2.5 pulled forward — keyboard: ↑/↓ active row, ←/→ chart row, +/=/−/_ repeat.
+      Chart row/rep state lifted into `App.svelte` (not yet persisted — that's still 2.1).
 - [ ] 1.8 **GridBlock stub** — `lib/blocks/GridBlock.svelte`, render the raw written stitch text
       (real interactive grid comes in Phase 5).
 - [ ] 1.9 **Panels** — metadata panel + original-text panel (shows source text for selected row).
