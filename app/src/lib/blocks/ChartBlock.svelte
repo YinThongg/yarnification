@@ -28,6 +28,11 @@
   const bandIndex = $derived(topDown ? row - 1 : rows - row);
   const bandTop = $derived(topPct + bandIndex * rowH);
 
+  // Edge labels follow the chart's direction: row 1 sits at the bottom for a
+  // bottom-up chart (topDown = false), at the top for a top-down one.
+  const topLabel = $derived(topDown ? 'first row' : 'last row');
+  const botLabel = $derived(topDown ? 'last row' : 'first row');
+
   function dragHandle(which) {
     return (e) => {
       e.preventDefault();
@@ -64,8 +69,8 @@
     <img bind:this={imgEl} {src} alt={block.name} />
     <div class="band" style="top:{bandTop * 100}%; height:{rowH * 100}%"></div>
     {#if calibrating}
-      <div class="edge" style="top:{topPct * 100}%" onpointerdown={dragHandle('top')}><span>row 1</span></div>
-      <div class="edge" style="top:{botPct * 100}%" onpointerdown={dragHandle('bot')}><span>last row</span></div>
+      <div class="edge" style="top:{topPct * 100}%" onpointerdown={dragHandle('top')}><span>{topLabel}</span></div>
+      <div class="edge" style="top:{botPct * 100}%" onpointerdown={dragHandle('bot')}><span>{botLabel}</span></div>
     {/if}
   </div>
 

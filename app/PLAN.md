@@ -65,7 +65,8 @@ Render the mockup from real data, read-only. No persistence, no editing.
       resolved numbers, target, kind/grid tags, active highlight. (grid routed here until 1.8.)
 - [x] 1.7 **ChartBlock** — `lib/blocks/ChartBlock.svelte`, chart-card with the row-band overlay,
       per-size image, repeat counter, calibrate. Verified stepping the band on real 图表1.
-- [~] 1.10 partial — block loop wired into `App.svelte` (theme retuned to match old index.html).
+- [x] 1.10 **Wire together** — block loop in `App.svelte`; second section (Body) added, multi-section
+      nav works. (theme retuned to match old index.html.)
 - [~] 1.9 partial — bilingual EN/中文 shown inline per row (source text); a dedicated panel may
       still come. Language chip toggles EN / 中文 / both.
 - [~] 2.4 + 2.5 pulled forward — keyboard: ↑/↓ active row, ←/→ chart row, +/=/−/_ repeat.
@@ -83,12 +84,15 @@ Render the mockup from real data, read-only. No persistence, no editing.
 ### Phase 2 — Interactivity + progress
 Make it a real tracker. State survives refresh.
 
-- [ ] 2.1 **Progress store** — `stores/progress.js`, shape + `localStorage` load/save, keyed by
-      `patternId + chosen`.
-- [ ] 2.2 **Checkboxes** — CounterBlock rows tick on/off, wired to the store, persist.
-- [ ] 2.3 **Row counter** — increment/decrement control with target display ("剩 7 sts").
-- [ ] 2.4 **Current-row highlight + keys** — selected row highlighted; ↑/↓ move within a section.
-- [ ] 2.5 **Repeat counters** — `Repeat n/N` for chart + repeat blocks, wired to store.
+- [x] 2.1 **Progress store** — `lib/progress.js` (`loadProgress`/`saveProgress`) + `$effect` in App;
+      persists selected section, active row, and chart counters (section-scoped keys). Verified
+      restore after reload.
+- [x] 2.2 **Checkboxes** — CounterBlock rows tick on/off (dim + strikethrough), persisted.
+- [x] 2.3 **Row counter** — repeat rows (`kind: repeat`) get a +/− ×N counter with until/target
+      text, persisted. (Demoed on Body's "repeat rows 2–3 until Chart 2 complete".)
+- [x] 2.4 **Current-row highlight + keys** — active row highlighted; ↑/↓ move within a section
+      (persisted). ←/→ step chart row.
+- [x] 2.5 **Repeat counters** — `Repeat n/N` on chart blocks, +/=/−/_ keys, persisted.
 - [ ] 2.6 **Per-row notes** — freeform text saved per row.
 - [ ] 2.7 **Chart calibration persists** — top/bottom/rows/direction saved per chart.
 - [ ] 2.8 **Reset controls** — reset a section's or the whole pattern's progress.
@@ -142,6 +146,21 @@ Parity with the old app's power features, plus the new ones.
       `index.html`, and a chart can be turned interactive.
 
 ---
+
+## Backlog — features to slot in later (agreed, not yet scheduled)
+
+- **Friendly size labels** — let sizes show as XS/S/M/L/XL/XXL (or whatever the user says when
+  asked), not just `1..9`. Whatever label the user gives at generation is what displays. The
+  top-corner chip shows the size **only** (no bust). Store the mapping in `sizes.labels`.
+- **Ask size + bust together** — the generation prompt asks for size *and* names the bust so there's
+  no ambiguity ("size 1 = 78cm?"). Bust shown while choosing, not in the header chip.
+- **Measurements section (new, top of pattern)** — if the PDF has a measurement schematic, surface
+  the values for the chosen size(s) only, plus the pattern's gauge/swatch info. Optionally capture
+  the user's *own* gauge (asked during prompting) and show it alongside.
+- **Recommended-stitches skill (agent-side)** — beyond the original instructions, an optional
+  "recommended" track computed from size + gauge: adjusted stitch counts / repeat counts, e.g.
+  "repeat step 3 — 8(9) 10 times" as a `size S(M) rec` line next to the original. Lives with the
+  Claude-in-the-loop generation, surfaced as a secondary line/tab per block.
 
 ## Open questions (decide when we reach them)
 - Sidebar layout on mobile (drawer vs. top tabs).

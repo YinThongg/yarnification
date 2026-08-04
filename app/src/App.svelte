@@ -1,16 +1,20 @@
 <script>
   import pattern from '../patterns/luoshen-vest.json';
   import { indicesFor, resolveGraded } from './lib/size.js';
+  import { loadProgress, saveProgress } from './lib/progress.js';
   import SectionList from './lib/SectionList.svelte';
   import CounterBlock from './lib/blocks/CounterBlock.svelte';
   import ChartBlock from './lib/blocks/ChartBlock.svelte';
 
+  // Restore saved progress for this pattern (or start fresh).
+  const saved = loadProgress(pattern.id);
+
   // Which section is open. Default to the first.
-  let selectedId = $state(pattern.sections[0]?.id ?? null);
+  let selectedId = $state(saved.selectedId ?? pattern.sections[0]?.id ?? null);
   const selected = $derived(pattern.sections.find((s) => s.id === selectedId));
 
   // Which block within the section is active (yellow highlight / keyboard target).
-  let activeBlock = $state(0);
+  let activeBlock = $state(saved.activeBlock ?? 0);
 
   // Language display: 'both' | 'en' | 'zh'.
   let lang = $state('both');
@@ -18,12 +22,21 @@
   function cycleLang() { lang = lang === 'both' ? 'en' : lang === 'en' ? 'zh' : 'both'; }
 
   // Per-chart counters (row within the chart, and which repeat). Lifted here so
-  // the keyboard can drive them. Keyed by block index within the section.
-  let chart = $state({});
-  const csOf = (i) => chart[i] ?? { row: 1, rep: 1 };
+  // the keyboard can drive them. Keyed by "sectionId:blockIndex" so counters in
+  // different sections never collide.
+  let chart = $state(saved.chart ?? {});
+  let done = $state(saved.done ?? {});   // "sectionId:i" -> true  (row ticked off)
+  let reps = $state(saved.reps ?? {});   // "sectionId:i" -> count (repeat rows)
+  const keyOf = (i) => `${selectedId}:${i}`;
+  const csOf = (i) => chart[keyOf(i)] ?? { row: 1, rep: 1 };
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-  function bumpRow(i, d, rows) { const c = csOf(i); chart = { ...chart, [i]: { ...c, row: clamp(c.row + d, 1, rows) } }; }
-  function bumpRep(i, d, total) { const c = csOf(i); chart = { ...chart, [i]: { ...c, rep: clamp(c.rep + d, 1, total) } }; }
+  function bumpRow(i, d, rows) { const k = keyOf(i); const c = csOf(i); chart = { ...chart, [k]: { ...c, row: clamp(c.row + d, 1, rows) } }; }
+  function bumpRep(i, d, total) { const k = keyOf(i); const c = csOf(i); chart = { ...chart, [k]: { ...c, rep: clamp(c.rep + d, 1, total) } }; }
+  function toggleDone(i) { const k = keyOf(i); done = { ...done, [k]: !done[k] }; }
+  function bumpCount(i, d) { const k = keyOf(i); reps = { ...reps, [k]: Math.max(0, (reps[k] ?? 0) + d) }; }
+
+  // Persist whenever anything changes.
+  $effect(() => { saveProgress(pattern.id, { selectedId, activeBlock, chart, done, reps }); });
 
   // Chosen size → indices, used to resolve every graded number.
   const idx = $derived(indicesFor(pattern.sizes.labels, pattern.chosen));
@@ -118,6 +131,10 @@
                 rowNo={item.rowNo}
                 {lang}
                 active={activeBlock === item.i}
+                done={!!done[`${selectedId}:${item.i}`]}
+                onToggle={() => toggleDone(item.i)}
+                count={reps[`${selectedId}:${item.i}`] ?? 0}
+                onCount={(d) => bumpCount(item.i, d)}
                 onSelect={() => (activeBlock = item.i)}
               />
             {/if}
