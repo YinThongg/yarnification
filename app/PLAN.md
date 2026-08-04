@@ -51,12 +51,13 @@ demo ("done when"). Build top to bottom; don't start a phase until the previous 
 ### Phase 1 — Data model + static render
 Render the mockup from real data, read-only. No persistence, no editing.
 
-- [ ] 1.1 **Schema** — write the pattern JSON shape as a documented example (`patterns/SCHEMA.md`):
-      `meta`, `sizes`, `chosen`, `sections[].blocks[]` with the three block types.
-- [ ] 1.2 **Size resolver** — `lib/size.js`, a pure function `(gradedString, chosen[]) → "50"` /
-      `"50(58)"`. Handles the `a, b, c (d, e, f) [g, h, i]` bracket format. Small + testable.
-- [ ] 1.3 **Seed data** — hand-author `patterns/luoshen-vest.json` for **just the Lace border
-      section** (all three block types appear in it), sizes + meta filled from the PDF.
+- [x] 1.1 **Schema** — `patterns/SCHEMA.md`: `meta`, `sizes`, `chosen`, `sections[].blocks[]`
+      with the three block types, graded values stored whole.
+- [x] 1.2 **Size resolver** — `lib/size.js` (`parseGraded`, `indicesFor`, `resolveGraded`,
+      `resolveText`) + `size.test.js` (10 tests, `npm test`). Handles `a, b, c (d, e, f) [g, h, i]`.
+- [x] 1.3 **Seed data** — `patterns/luoshen-vest.json` (Lace border section, all three block
+      types), meta + sizes from the PDF, 图表1 size-variant crops in `public/charts/luoshen/`.
+      Validated: resolves to size-2 numbers matching the mockup.
 - [ ] 1.4 **App shell** — `App.svelte` layout: header (title + size/lang chips), left sidebar
       region, main content region. Static, no logic yet.
 - [ ] 1.5 **SectionList** — `lib/SectionList.svelte`, lists section names, tracks selected (local).
