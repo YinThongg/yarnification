@@ -11,15 +11,15 @@
   // The pattern to track comes from the library (App picks it). `onBack` returns
   // to the library screen. This component is keyed on pattern.id by the parent,
   // so switching patterns remounts it and re-reads that pattern's saved progress.
-  let { pattern, onBack } = $props();
+  let { pattern, chosen, onBack, onChangeChosen } = $props();
 
-  // The parent remounts this component per pattern (keyed on pattern.id), so the
-  // one-time setup below reads the initial prop once. untrack keeps that read out
-  // of any reactive scope — the value never changes without a remount anyway.
+  // The parent remounts this component per pattern+size (keyed on id|chosen), so
+  // the one-time setup below reads the initial props once. untrack keeps those
+  // reads out of any reactive scope — they never change without a remount.
   const base = untrack(() => pattern);
 
-  // Keep progress separate if the same pattern is generated for another size.
-  const progressId = `${base.id}:${base.chosen.join('+')}`;
+  // Progress is scoped per pattern *and* chosen-size combo.
+  const progressId = `${base.id}:${untrack(() => chosen).join('+')}`;
   const saved = loadProgress(progressId);
 
   // Which section is open. Default to the first.
@@ -52,10 +52,39 @@
   function bumpCount(i, d) { const k = keyOf(i); reps = { ...reps, [k]: Math.max(0, (reps[k] ?? 0) + d) }; }
 
   // Chosen size → indices, used to resolve every graded number.
-  const idx = $derived(indicesFor(pattern.sizes.labels, pattern.chosen));
+  const idx = $derived(indicesFor(pattern.sizes.labels, chosen));
 
   function applies(block) {
-    return !block.appliesTo?.length || block.appliesTo.some((size) => pattern.chosen.includes(size));
+    return !block.appliesTo?.length || block.appliesTo.some((size) => chosen.includes(size));
+  }
+
+  // --- Size picker ----------------------------------------------------------
+  const initChosen = untrack(() => chosen); // one-shot; remounts on size change
+  const labels = base.sizes.labels ?? [];
+  const bustM = (base.sizes.measurements ?? []).find((m) => /bust|胸围/i.test(m.name));
+  function bustFor(label) {
+    if (!bustM) return '';
+    const v = bustM.values?.[labels.indexOf(label)];
+    return v ? `${v}${bustM.unit ?? ''}` : '';
+  }
+  function nextLabel(label) {
+    const i = labels.indexOf(label);
+    return labels[Math.min(labels.length - 1, i + 1)] ?? label;
+  }
+  let pickerOpen = $state(false);
+  let dPrimary = $state(initChosen[0] ?? labels[0]);
+  let dTwo = $state(initChosen.length > 1);
+  let dSecondary = $state(initChosen[1] ?? '');
+  function openPicker() {
+    dPrimary = chosen[0] ?? labels[0];
+    dTwo = chosen.length > 1;
+    dSecondary = chosen[1] ?? nextLabel(dPrimary);
+    pickerOpen = true;
+  }
+  function applyPicker() {
+    const next = dTwo && dSecondary && dSecondary !== dPrimary ? [dPrimary, dSecondary] : [dPrimary];
+    pickerOpen = false;
+    onChangeChosen?.(next);
   }
 
   // Hide steps that do not apply to the chosen size, while retaining the
@@ -160,18 +189,16 @@
     saveProgress(progressId, { selectedId, activeBlock, chart, done, reps, notes, calibrations });
   });
 
-  // Header chip: chosen size plus its resolved finished-bust measurement.
+  // Header chip: chosen size label(s) only — "1", or "1(2)" between sizes. Bust
+  // lives in the picker (while choosing) and the metadata panel, not the chip.
   const sizeLabel = $derived(
-    pattern.chosen.length === 1
-      ? pattern.chosen[0]
-      : pattern.chosen[0] + '(' + pattern.chosen.slice(1).join(', ') + ')'
+    chosen.length === 1 ? chosen[0] : chosen[0] + '(' + chosen.slice(1).join(', ') + ')'
   );
-  const bust = $derived(pattern.sizes.measurements.find((m) => m.name === 'Finished bust'));
-  const bustLabel = $derived(bust ? resolveGraded(bust.values.join(', '), idx) + bust.unit : '');
 
   // Keyboard: ↑/↓ move the active row, ←/→ step the active chart's row,
   // +/= and -/_ step the active chart's repeat.
   function onKey(e) {
+    if (e.key === 'Escape' && pickerOpen) { pickerOpen = false; return; }
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement || e.target?.isContentEditable) return;
     if (items.length === 0) return;
     const activePosition = Math.max(0, items.findIndex((item) => item.i === activeBlock));
@@ -198,7 +225,39 @@
       {#if pattern.meta.titleEn}<span class="orig">{pattern.meta.title}</span>{/if}
     </div>
     <div class="chips">
-      <span class="chip accent">Size {sizeLabel}{bustLabel ? ` · ${bustLabel}` : ''}</span>
+      <div class="sizewrap">
+        <button class="chip accent picker-trigger" onclick={openPicker} aria-haspopup="true" aria-expanded={pickerOpen}>Size {sizeLabel} <span class="caret">▾</span></button>
+        {#if pickerOpen}
+          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+          <div class="picker-backdrop" role="presentation" onclick={() => (pickerOpen = false)}></div>
+          <div class="picker" role="dialog" aria-label="Choose knitting size">
+            <div class="picker-title">Knitting size</div>
+            <div class="picker-list">
+              {#each labels as label (label)}
+                <label class="picker-row" class:sel={dPrimary === label}>
+                  <input type="radio" name="primary-size" value={label} bind:group={dPrimary} />
+                  <span class="pl">{label}</span>
+                  {#if bustFor(label)}<span class="pb">{bustFor(label)}</span>{/if}
+                </label>
+              {/each}
+            </div>
+            <label class="picker-two">
+              <input type="checkbox" bind:checked={dTwo} /> Knitting between two sizes
+            </label>
+            {#if dTwo}
+              <select class="picker-sec" bind:value={dSecondary}>
+                {#each labels.filter((l) => l !== dPrimary) as label (label)}
+                  <option value={label}>{label}{bustFor(label) ? ` · ${bustFor(label)}` : ''}</option>
+                {/each}
+              </select>
+            {/if}
+            <div class="picker-actions">
+              <button onclick={() => (pickerOpen = false)}>Cancel</button>
+              <button class="primary" onclick={applyPicker}>Apply</button>
+            </div>
+          </div>
+        {/if}
+      </div>
       <button class="chip toggle" onclick={cycleLang} title="Toggle language">{langLabel[lang]}</button>
     </div>
   </header>
@@ -246,7 +305,7 @@
               <ChartBlock
                 block={item.block}
                 indices={idx}
-                chosen={pattern.chosen}
+                {chosen}
                 {lang}
                 row={csOf(item.i).row}
                 rep={csOf(item.i).rep}
@@ -309,7 +368,7 @@
   }
   .back:hover { background: var(--panel); }
 
-  .chips { display: flex; gap: 6px; }
+  .chips { display: flex; gap: 6px; align-items: flex-start; }
   .chip {
     font-size: 12px; padding: 4px 10px; border-radius: 20px;
     background: var(--card); border: 1px solid var(--border); color: var(--text-muted);
@@ -317,6 +376,33 @@
   .chip.accent { background: var(--accent-soft); border-color: var(--accent-soft); color: #92600b; }
   .chip.toggle { cursor: pointer; }
   .chip.toggle:hover { background: var(--panel); }
+
+  .sizewrap { position: relative; }
+  .picker-trigger { cursor: pointer; }
+  .picker-trigger:hover { filter: brightness(0.97); }
+  .caret { font-size: 9px; opacity: 0.7; }
+
+  .picker-backdrop { position: fixed; inset: 0; z-index: 20; }
+  .picker {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 21; width: 210px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.16); padding: 10px;
+  }
+  .picker-title { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); margin-bottom: 6px; }
+  .picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
+  .picker-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .picker-row:hover { background: var(--panel); }
+  .picker-row.sel { background: var(--accent-soft); }
+  .picker-row input { accent-color: var(--accent); }
+  .picker-row .pl { font-weight: 600; }
+  .picker-row .pb { margin-left: auto; color: var(--text-muted); font-size: 12px; }
+  .picker-two { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+  .picker-two input { accent-color: var(--accent); }
+  .picker-sec { width: 100%; margin-top: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--card); color: var(--text); font: inherit; font-size: 13px; }
+  .picker-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  .picker-actions button { cursor: pointer; font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+  .picker-actions button:hover { background: var(--panel); }
+  .picker-actions .primary { background: var(--accent-soft); border-color: var(--accent-soft); color: #92600b; }
 
   .body { display: grid; grid-template-columns: 260px 1fr; gap: 0; }
   .sidebar { padding: 14px; border-right: 1px solid var(--border); }

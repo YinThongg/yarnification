@@ -28,6 +28,36 @@ export function saveProgress(patternId, data) {
   }
 }
 
+// --- Chosen size selection ---------------------------------------------------
+// Which size(s) the user is knitting for a pattern, so the picker's choice
+// survives reload. Separate from progress (which is scoped *per* size combo).
+
+const CHOSEN_KEY = 'yarnification:chosen';
+
+function readChosen() {
+  try {
+    return JSON.parse(localStorage.getItem(CHOSEN_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+// Saved chosen labels for a pattern, or null to fall back to the pattern default.
+export function loadChosen(patternId) {
+  const value = readChosen()[patternId];
+  return Array.isArray(value) && value.length ? value : null;
+}
+
+export function saveChosen(patternId, chosen) {
+  try {
+    const all = readChosen();
+    all[patternId] = chosen;
+    localStorage.setItem(CHOSEN_KEY, JSON.stringify(all));
+  } catch {
+    // storage unavailable — selection just won't persist
+  }
+}
+
 // Remove one pattern/size progress blob without touching other patterns.
 export function clearProgress(patternId) {
   try {

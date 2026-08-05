@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import seed from '../patterns/luoshen-vest.json';
   import { deletePattern, getPattern, listPatterns, putPattern, seedPattern } from './stores/library.js';
+  import { loadChosen, saveChosen } from './lib/progress.js';
   import PatternView from './PatternView.svelte';
   import ImportDialog from './ImportDialog.svelte';
   // Ingest pulls in pdf.js (~400KB); load it only when the user opens the flow,
@@ -13,6 +14,7 @@
   // (stores/library.js); the bundled vest is seeded in on first run.
   let patterns = $state([]);      // installed pattern records, newest first
   let current = $state(null);     // opened full pattern, or null
+  let chosen = $state([]);        // size label(s) for the open pattern (picker-controlled)
   let ingesting = $state(false);  // true → the "Add a pattern" ingestion flow
   let importing = $state(false);  // true → the "Import pattern.json" dialog
 
@@ -42,16 +44,29 @@
 
   onMount(init);
 
+  // Open a pattern into the reading view, seeding the size picker from the saved
+  // selection (or the pattern's own default).
+  function show(record) {
+    current = record;
+    chosen = loadChosen(record.id) ?? record.chosen ?? [];
+  }
+
+  // Change which size(s) are being knit; persist and let the {#key} remount
+  // PatternView so progress re-scopes to the new size combo.
+  function changeChosen(next) {
+    if (!next?.length || !current) return;
+    saveChosen(current.id, next);
+    chosen = next;
+  }
+
   async function open(id) {
+    let record = null;
     if (storeOk) {
-      try {
-        current = await getPattern(id);
-        return;
-      } catch {
-        /* fall through to the in-memory copy */
-      }
+      try { record = await getPattern(id); } catch { /* fall through to memory */ }
     }
-    current = patterns.find((p) => p.id === id) ?? null;
+    if (!record) record = patterns.find((p) => p.id === id) ?? null;
+    if (record) show(record);
+    else current = null;
   }
 
   async function back() {
@@ -78,12 +93,12 @@
       const record = await putPattern(pattern);
       await refresh();
       ingesting = false;
-      current = record;
+      show(record);
     } else {
       const record = { ...pattern, addedAt: Date.now() };
       patterns = [record, ...patterns.filter((p) => p.id !== record.id)];
       ingesting = false;
-      current = record;
+      show(record);
     }
   }
 
@@ -92,7 +107,7 @@
     importing = false;
     if (storeOk) await refresh();
     else patterns = [record, ...patterns.filter((p) => p.id !== record.id)];
-    current = record;
+    show(record);
   }
 
   // "1", or "1(2, 3)" for multi-size — matches PatternView's header chip.
@@ -102,8 +117,8 @@
 </script>
 
 {#if current}
-  {#key current.id}
-    <PatternView pattern={current} onBack={back} />
+  {#key current.id + '|' + chosen.join(',')}
+    <PatternView pattern={current} {chosen} onBack={back} onChangeChosen={changeChosen} />
   {/key}
 {:else if ingesting}
   {#await ingestPromise then mod}
@@ -135,7 +150,7 @@
                 <span class="card-orig">{p.meta.title}</span>
               {/if}
               <span class="card-meta">
-                <span class="pill">Size {sizeLabel(p.chosen)}</span>
+                <span class="pill">Size {sizeLabel(loadChosen(p.id) ?? p.chosen)}</span>
                 <span class="pill soft">{p.sections.length} section{p.sections.length === 1 ? '' : 's'}</span>
               </span>
             </button>

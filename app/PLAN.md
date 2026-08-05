@@ -165,6 +165,11 @@ Get a new PDF in with minimal tokens. App does extraction; Claude does conversio
 ### Phase 5 — Grid depth + polish
 Parity with the old app's power features, plus the new ones.
 
+**Grid UX (decided):** interactive grids render **inline in the block card** (like charts do), with
+an **expand-to-fullscreen overlay** for a big view — *not* a separate whiteboard page. A v2 `grid`
+block is one knit row → a horizontal strip of cells; consecutive rows stack as cards down the flow.
+Fullscreen is an in-app overlay (close → back exactly where you were), keeping v2's linear reading model.
+
 - [ ] 5.1 **Port `.knit` parser** — move parser to a module + tests.
 - [ ] 5.2 **Real GridBlock** — render cells, symbols, per-type colors, reading direction.
 - [ ] 5.3 **Markers/BOR + collapse + validation** — thick lines, BOR indicator, `...` collapse,
@@ -181,11 +186,14 @@ Parity with the old app's power features, plus the new ones.
 
 ## Backlog — features to slot in later (agreed, not yet scheduled)
 
-- **Friendly size labels** — let sizes show as XS/S/M/L/XL/XXL (or whatever the user says when
-  asked), not just `1..9`. Whatever label the user gives at generation is what displays. The
-  top-corner chip shows the size **only** (no bust). Store the mapping in `sizes.labels`.
-- **Ask size + bust together** — the generation prompt asks for size *and* names the bust so there's
-  no ambiguity ("size 1 = 78cm?"). Bust shown while choosing, not in the header chip.
+- ✅ **Sizing UX (labels + two-size)** — done (pulled ahead of Phase 5). In-app **size picker**
+  (click the header chip): lists every size with its **bust shown while choosing**, pick one or tick
+  "knitting between two sizes" for a second. Chip shows the **size label only** (`1` / `1(2)`), bust
+  moved out of the chip into the picker + metadata panel. Two-size numbers (`178(194)`) already came
+  free from `resolveGraded`. Selection persists per pattern (`progress.js` `loadChosen`/`saveChosen`),
+  re-scopes progress (PatternView keyed on `id|chosen`), and shows on the library card. Friendly
+  labels (S/M/L) render automatically since `sizes.labels` are free strings. NB: the generation/ingest
+  side still asks size as free text with bust hints — fine, the real picker lives in the reading view.
 - **Measurements section (new, top of pattern)** — if the PDF has a measurement schematic, surface
   the values for the chosen size(s) only, plus the pattern's gauge/swatch info. Optionally capture
   the user's *own* gauge (asked during prompting) and show it alongside.
