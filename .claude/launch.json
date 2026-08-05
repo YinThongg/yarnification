@@ -13,6 +13,13 @@
       "runtimeArgs": ["run", "dev"],
       "port": 5175,
       "cwd": "app"
+    },
+    {
+      "name": "yarnification-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--", "--port", "4176", "--strictPort"],
+      "port": 4176,
+      "cwd": "app"
     }
   ]
 }

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Maskable app icon: full-bleed amber background, yarn-ball glyph kept within
+       the central ~72% safe zone so it survives circular/rounded masks. -->
+  <rect width="512" height="512" fill="#d97706"/>
+  <g transform="translate(256 262)">
+    <circle r="150" fill="#fff7ea"/>
+    <g fill="none" stroke="#d97706" stroke-width="15" stroke-linecap="round" opacity="0.9">
+      <path d="M-150 -30 A150 150 0 0 1 30 -146"/>
+      <path d="M-146 40 A150 150 0 0 1 96 -115"/>
+      <path d="M-120 96 A150 150 0 0 1 140 -54"/>
+      <path d="M-64 136 A150 150 0 0 1 150 8"/>
+      <path d="M6 150 A150 150 0 0 1 132 79"/>
+    </g>
+    <g fill="none" stroke="#b45309" stroke-width="13" stroke-linecap="round" opacity="0.55">
+      <path d="M-96 -115 A150 150 0 0 1 115 -96"/>
+      <path d="M-140 54 A150 150 0 0 1 54 -140"/>
+    </g>
+    <!-- loose strand tail -->
+    <path d="M138 60 q60 24 44 78 q-14 46 -70 40" fill="none" stroke="#fff7ea" stroke-width="16" stroke-linecap="round"/>
+  </g>
+</svg>

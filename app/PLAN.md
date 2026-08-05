@@ -96,32 +96,69 @@ Make it a real tracker. State survives refresh.
 
 ---
 
-### Phase 3 — Offline / PWA + library
+### Phase 3 — Offline / PWA + library  ✅ (done)
 Installable, works with no internet.
 
-- [ ] 3.1 **PWA plugin** — add `vite-plugin-pwa`; manifest (name, icons, theme color).
-- [ ] 3.2 **Service worker** — precache app shell + pattern assets (images).
-- [ ] 3.3 **Library store** — `stores/library.js`, list of installed patterns.
-- [ ] 3.4 **My patterns screen** — list / open / delete saved patterns.
-- [ ] 3.5 **Install + mobile** — installability check; verify on mobile viewport.
-- [ ] 3.6 **Offline round-trip** — load with network cut, confirm everything works.
-- **Done when:** installed to home screen, opened offline, a saved pattern loads and tracks.
+- [x] 3.0 **Runtime pattern loading** — the app no longer static-imports one pattern.
+      `App.svelte` is now a router over the library: the reading view moved to
+      `PatternView.svelte` (takes a `pattern` prop, keyed on `pattern.id` so switching
+      remounts and re-reads that pattern's saved progress). Prereq for 3.3/3.4.
+- [x] 3.1 **PWA plugin** — `vite-plugin-pwa` (`registerType: autoUpdate`); manifest
+      (name, short_name, description, theme `#d97706`, standalone). Maskable icon
+      designed at `public/icon.svg`, rasterized to `pwa-192.png` / `pwa-512.png`.
+- [x] 3.2 **Service worker** — Workbox `generateSW` precaches app shell + all chart
+      images (`png/svg`, 4MB cap, `navigateFallback: index.html`). Verified 17 cache
+      entries incl. all 6 luoshen charts.
+- [x] 3.3 **Library store** — `stores/library.js`, IndexedDB (`getPattern`, `listPatterns`,
+      `putPattern`, `deletePattern`, `seedPattern`). IndexedDB, not localStorage, so it can
+      hold Phase-4 embedded chart images. Progress stays in `progress.js`/localStorage.
+      Graceful seed-only fallback when IndexedDB is unavailable (private mode).
+- [x] 3.4 **My patterns screen** — card grid (title, size, section count); open opens
+      `PatternView`, `×` deletes (confirm; keeps progress). Empty state notes Phase-4 import.
+      Vest is seeded on first run and re-seeds if the seed record is deleted.
+- [x] 3.5 **Install + mobile** — installability asserted (`installable: true`: manifest +
+      192/512 + maskable + active SW + standalone). Mobile viewport (375px) verified:
+      sidebar stacks, back button reachable. Test against `vite preview` (SW off in dev).
+- [x] 3.6 **Offline round-trip** — verified by **stopping the preview server** then reloading:
+      shell loads from SW cache, library loads from IndexedDB, pattern opens, chart renders
+      from precache, tracking works — all with the origin server down.
+- **Done when:** installed to home screen, opened offline, a saved pattern loads and tracks. ✅
+
+> Note: 3.2 precaches the *seed* pattern's build-time chart assets. Phase-4 user-imported
+> patterns will carry their crops as blobs/data-URLs inside the IndexedDB record (offline by
+> nature), so they need no service-worker precache — the split flagged in the Phase 3 review.
 
 ---
 
-### Phase 4 — Ingestion pipeline (the "loop me in" flow)
+### Phase 4 — Ingestion pipeline (the "loop me in" flow)  ✅ (done)
 Get a new PDF in with minimal tokens. App does extraction; Claude does conversion.
 
-- [ ] 4.1 **PDF upload + render** — in-app upload, render pages with `pdf.js`.
-- [ ] 4.2 **Text extraction** — pull selectable text per page (local, no AI).
-- [ ] 4.3 **Section detection** — heuristic split on bold headers / known markers.
-- [ ] 4.4 **Chart-crop tool** — draw a box on a rendered page → export a PNG into pattern assets.
-- [ ] 4.5 **Ask-before-generating UI** — summary confirm + 3 questions (size / language / scope).
-- [ ] 4.6 **Export bundle** — package extracted text + crops + answers for Claude.
-- [ ] 4.7 **Import contract** — define `pattern.json` handoff; import a returned JSON into library.
-- [ ] 4.8 **(Optional) paste-JSON slot** — quick in-app import without a file.
+- [x] 4.1 **PDF upload + render** — `lib/pdf.js` (bundled worker via `?url`, offline/CSP-safe) +
+      `Ingest.svelte` (reached from the library's "+ Add pattern"). Verified on the real 20-page vest.
+      Ingest is **lazy-loaded** (dynamic import) so pdf.js stays out of the main bundle (77KB vs 513KB).
+- [x] 4.2 **Text extraction** — `extractText` reconstructs visual lines from pdf.js text items
+      (y-bucket → x-order → top-down); mixed CJK/Latin. Pulled the cast-on, `蕾丝底边`, chart line,
+      and the whole spec page (sizes/bust/yarn/gauge) cleanly.
+- [x] 4.3 **Section detection** — light heuristic (`HEADER_RE`, short lines) → `sectionHints` in the
+      bundle. Claude does the real structuring; hints are just an assist.
+- [x] 4.4 **Chart-crop tool** — drag a box on a rendered page → PNG crop (canvas→data-URL, CSS→canvas
+      px scaling). Captured crops listed with remove/renumber (`chart1..N` ↔ 图表1..N).
+- [x] 4.5 **Ask-before-generating UI** — 3 questions (size* / language / scope) with extracted
+      size+bust hints shown inline. Export gated on a size being entered.
+- [x] 4.6 **Export bundle** — `bundle.json` (text + answers + chart ids + section hints; **no image
+      data**) via **Download** or **Copy prompt** (both, per the user's choice). Crops persist in a
+      `drafts` IndexedDB store (v2). NB: state must be `$state.snapshot()`ed before IndexedDB —
+      structured clone can't clone Svelte proxies (fixed a DataCloneError here).
+- [x] 4.7 **Import contract** — `ImportDialog.svelte`: file **or** paste → validate → look up the
+      draft by `pattern.draftId` → merge crops into each `chart` block's `imageBySize` → `putPattern`
+      → delete draft → open it. Warns if a chart has no matching crop.
+- [x] 4.8 **Paste-JSON slot** — same dialog: a textarea path alongside the file picker.
 - **Done when:** upload the vest PDF, crop its charts, answer 3 questions, hand the bundle to
-      Claude, drop the returned JSON back, and it appears as a trackable pattern.
+      Claude, drop the returned JSON back, and it appears as a trackable pattern. ✅ (round-trip
+      verified: Claude's JSON had empty `imageBySize`; the crop was merged in and rendered.)
+
+> The chart crops never go to Claude — they stay in the `drafts` store and merge back in on import by
+> `draftId` + `chartId`. The bundle to Claude is small text. (Resolves the Phase-4 handoff open question.)
 
 ---
 
@@ -160,4 +197,5 @@ Parity with the old app's power features, plus the new ones.
 ## Open questions (decide when we reach them)
 - Sidebar layout on mobile (drawer vs. top tabs).
 - Where the chart crop-region calibration lives (per pattern vs. per session).
-- Handoff format details for Phase 4 (single JSON vs. per-section fragments).
+- ~~Handoff format details for Phase 4~~ → resolved: single `bundle.json` (text-only) out, single
+  `pattern.json` back; crops held app-side in a `drafts` store and merged by `draftId`+`chartId`.

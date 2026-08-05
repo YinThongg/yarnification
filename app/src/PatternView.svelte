@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { indicesFor, resolveGraded } from './lib/size.js';
   import { clearProgress, loadProgress, saveProgress } from './lib/progress.js';
   import SectionList from './lib/SectionList.svelte';
@@ -12,13 +13,18 @@
   // so switching patterns remounts it and re-reads that pattern's saved progress.
   let { pattern, onBack } = $props();
 
+  // The parent remounts this component per pattern (keyed on pattern.id), so the
+  // one-time setup below reads the initial prop once. untrack keeps that read out
+  // of any reactive scope — the value never changes without a remount anyway.
+  const base = untrack(() => pattern);
+
   // Keep progress separate if the same pattern is generated for another size.
-  const progressId = `${pattern.id}:${pattern.chosen.join('+')}`;
+  const progressId = `${base.id}:${base.chosen.join('+')}`;
   const saved = loadProgress(progressId);
 
   // Which section is open. Default to the first.
-  const savedSectionExists = pattern.sections.some((section) => section.id === saved.selectedId);
-  let selectedId = $state(savedSectionExists ? saved.selectedId : pattern.sections[0]?.id ?? null);
+  const savedSectionExists = base.sections.some((section) => section.id === saved.selectedId);
+  let selectedId = $state(savedSectionExists ? saved.selectedId : base.sections[0]?.id ?? null);
   const selected = $derived(pattern.sections.find((s) => s.id === selectedId));
 
   // Which block within the section is active (yellow highlight / keyboard target).

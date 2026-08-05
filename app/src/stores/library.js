@@ -9,8 +9,9 @@
 // the full pattern JSON plus an `addedAt` timestamp used to order the library.
 
 const DB_NAME = 'yarnification';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'patterns';
+const DRAFTS = 'drafts'; // ingestion drafts: chart crops + answers awaiting Claude's JSON
 
 let dbPromise = null;
 
@@ -27,6 +28,9 @@ function openDB() {
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains(DRAFTS)) {
+        db.createObjectStore(DRAFTS, { keyPath: 'id' });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -34,14 +38,14 @@ function openDB() {
   return dbPromise;
 }
 
-// Run one transaction and resolve when it *commits* (not just when the request
-// fires) so callers can trust the write is durable before updating the UI.
-function tx(mode, run) {
+// Run one transaction over `storeName` and resolve when it *commits* (not just
+// when the request fires) so callers can trust the write is durable.
+function tx(mode, run, storeName = STORE) {
   return openDB().then(
     (db) =>
       new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE, mode);
-        const store = transaction.objectStore(STORE);
+        const transaction = db.transaction(storeName, mode);
+        const store = transaction.objectStore(storeName);
         let result;
         Promise.resolve(run(store))
           .then((value) => {
@@ -94,4 +98,28 @@ export async function seedPattern(pattern) {
   const existing = await getPattern(pattern.id);
   if (existing) return existing;
   return putPattern(pattern);
+}
+
+// --- Ingestion drafts -------------------------------------------------------
+// A draft holds the chart crops (as PNG data-URLs) + the user's answers while
+// the extracted text is out with Claude. On import we look the draft up by id
+// and merge its crops into the returned pattern, then delete it.
+
+export function saveDraft(draft) {
+  const record = { ...draft, savedAt: Date.now() };
+  return tx('readwrite', (store) => store.put(record), DRAFTS).then(() => record);
+}
+
+export function getDraft(id) {
+  return tx('readonly', (store) => reqAsync(store.get(id)), DRAFTS).then((v) => v ?? null);
+}
+
+export function listDrafts() {
+  return tx('readonly', (store) => reqAsync(store.getAll()), DRAFTS).then((rows) =>
+    rows.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0))
+  );
+}
+
+export function deleteDraft(id) {
+  return tx('readwrite', (store) => store.delete(id), DRAFTS);
 }
