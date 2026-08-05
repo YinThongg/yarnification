@@ -48,7 +48,7 @@ demo ("done when"). Build top to bottom; don't start a phase until the previous 
 
 ---
 
-### Phase 1 — Data model + static render
+### Phase 1 — Data model + static render  ✅ (done)
 Render the mockup from real data, read-only. No persistence, no editing.
 
 - [x] 1.1 **Schema** — `patterns/SCHEMA.md`: `meta`, `sizes`, `chosen`, `sections[].blocks[]`
@@ -57,45 +57,40 @@ Render the mockup from real data, read-only. No persistence, no editing.
       `resolveText`) + `size.test.js` (10 tests, `npm test`). Handles `a, b, c (d, e, f) [g, h, i]`.
 - [x] 1.3 **Seed data** — `patterns/luoshen-vest.json` (Lace border section, all three block
       types), meta + sizes from the PDF, 图表1 size-variant crops in `public/charts/luoshen/`.
-      Validated: resolves to size-2 numbers matching the mockup.
+      Validated: resolves numbers and chart crops for the chosen size.
 - [x] 1.4 **App shell** — `App.svelte`: header (title + resolved size/lang chips), sidebar +
       main regions, loads `luoshen-vest.json`. Theme tokens in `app.css`. Server pinned to :5175.
 - [x] 1.5 **SectionList** — `lib/SectionList.svelte`, lists sections (name + 原文), tracks selected.
 - [x] 1.6 **CounterBlock** — `lib/blocks/CounterBlock.svelte`, old-app row style: `[#][←/→]text`,
-      resolved numbers, target, kind/grid tags, active highlight. (grid routed here until 1.8.)
+      resolved numbers, target, kind tags, active highlight.
 - [x] 1.7 **ChartBlock** — `lib/blocks/ChartBlock.svelte`, chart-card with the row-band overlay,
       per-size image, repeat counter, calibrate. Verified stepping the band on real 图表1.
-- [x] 1.10 **Wire together** — block loop in `App.svelte`; second section (Body) added, multi-section
-      nav works. (theme retuned to match old index.html.)
-- [~] 1.9 partial — bilingual EN/中文 shown inline per row (source text); a dedicated panel may
-      still come. Language chip toggles EN / 中文 / both.
-- [~] 2.4 + 2.5 pulled forward — keyboard: ↑/↓ active row, ←/→ chart row, +/=/−/_ repeat.
-      Chart row/rep state lifted into `App.svelte` (not yet persisted — that's still 2.1).
-- [ ] 1.8 **GridBlock stub** — `lib/blocks/GridBlock.svelte`, render the raw written stitch text
+- [x] 1.8 **GridBlock stub** — `lib/blocks/GridBlock.svelte`, renders raw written stitch text
       (real interactive grid comes in Phase 5).
-- [ ] 1.9 **Panels** — metadata panel + original-text panel (shows source text for selected row).
-- [ ] 1.10 **Wire together** — `App` loops `sections → blocks`, renders the right component per
-      `block.type`. Extend seed data to a 2nd section to prove the loop.
+- [x] 1.9 **Panels** — metadata panel + original-text panel (shows source text for selected row),
+      with EN/中文/both display toggle for the inline instructions.
+- [x] 1.10 **Wire together** — `App` loops `sections → blocks`, renders the right component per
+      `block.type`, filters `appliesTo`, and includes a 2nd section to prove the loop.
 - **Done when:** the Lace border section renders from `luoshen-vest.json` and matches the mockup,
-      switching sections in the sidebar works, and numbers show size 2 only.
+      switching sections in the sidebar works, and numbers show the chosen size only.
 
 ---
 
-### Phase 2 — Interactivity + progress
+### Phase 2 — Interactivity + progress  ✅ (done)
 Make it a real tracker. State survives refresh.
 
 - [x] 2.1 **Progress store** — `lib/progress.js` (`loadProgress`/`saveProgress`) + `$effect` in App;
-      persists selected section, active row, and chart counters (section-scoped keys). Verified
-      restore after reload.
+      persists selected section, active row, and chart counters with pattern + chosen-size scope.
+      Verified restore after reload.
 - [x] 2.2 **Checkboxes** — CounterBlock rows tick on/off (dim + strikethrough), persisted.
 - [x] 2.3 **Row counter** — repeat rows (`kind: repeat`) get a +/− ×N counter with until/target
       text, persisted. (Demoed on Body's "repeat rows 2–3 until Chart 2 complete".)
 - [x] 2.4 **Current-row highlight + keys** — active row highlighted; ↑/↓ move within a section
       (persisted). ←/→ step chart row.
 - [x] 2.5 **Repeat counters** — `Repeat n/N` on chart blocks, +/=/−/_ keys, persisted.
-- [ ] 2.6 **Per-row notes** — freeform text saved per row.
-- [ ] 2.7 **Chart calibration persists** — top/bottom/rows/direction saved per chart.
-- [ ] 2.8 **Reset controls** — reset a section's or the whole pattern's progress.
+- [x] 2.6 **Per-row notes** — freeform text saved per instruction row and per chart row.
+- [x] 2.7 **Chart calibration persists** — top/bottom/rows/direction saved per chart.
+- [x] 2.8 **Reset controls** — reset a section's or the whole pattern's progress.
 - **Done when:** you can knit through the section, tick/count everything, refresh, and land back
       exactly where you were.
 

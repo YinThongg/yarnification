@@ -27,3 +27,14 @@ export function saveProgress(patternId, data) {
     // storage unavailable (private mode / quota) — progress just won't persist
   }
 }
+
+// Remove one pattern/size progress blob without touching other patterns.
+export function clearProgress(patternId) {
+  try {
+    const all = readAll();
+    delete all[patternId];
+    localStorage.setItem(KEY, JSON.stringify(all));
+  } catch {
+    // storage unavailable — in-memory UI state is still reset by the caller
+  }
+}

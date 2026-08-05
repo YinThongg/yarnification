@@ -1,189 +1,138 @@
 <script>
-  import pattern from '../patterns/luoshen-vest.json';
-  import { indicesFor, resolveGraded } from './lib/size.js';
-  import { loadProgress, saveProgress } from './lib/progress.js';
-  import SectionList from './lib/SectionList.svelte';
-  import CounterBlock from './lib/blocks/CounterBlock.svelte';
-  import ChartBlock from './lib/blocks/ChartBlock.svelte';
+  import { onMount } from 'svelte';
+  import seed from '../patterns/luoshen-vest.json';
+  import { deletePattern, getPattern, listPatterns, seedPattern } from './stores/library.js';
+  import PatternView from './PatternView.svelte';
 
-  // Restore saved progress for this pattern (or start fresh).
-  const saved = loadProgress(pattern.id);
+  // Router state: `current` null → the library ("My patterns") screen; otherwise
+  // the opened pattern is tracked in PatternView. The library lives in IndexedDB
+  // (stores/library.js); the bundled vest is seeded in on first run.
+  let patterns = $state([]);      // installed pattern records, newest first
+  let current = $state(null);     // opened full pattern, or null
+  let status = $state('loading'); // 'loading' | 'ready'
+  let storeOk = true;             // false → IndexedDB unavailable, seed-only fallback
 
-  // Which section is open. Default to the first.
-  let selectedId = $state(saved.selectedId ?? pattern.sections[0]?.id ?? null);
-  const selected = $derived(pattern.sections.find((s) => s.id === selectedId));
+  async function refresh() {
+    patterns = await listPatterns();
+  }
 
-  // Which block within the section is active (yellow highlight / keyboard target).
-  let activeBlock = $state(saved.activeBlock ?? 0);
+  async function init() {
+    try {
+      await seedPattern(seed);
+      await refresh();
+    } catch {
+      // IndexedDB unavailable (e.g. private browsing). Keep the app usable with
+      // the bundled seed pattern in memory; the library just won't persist.
+      storeOk = false;
+      patterns = [{ ...seed, addedAt: Date.now() }];
+    }
+    status = 'ready';
+  }
 
-  // Language display: 'both' | 'en' | 'zh'.
-  let lang = $state('both');
-  const langLabel = { both: 'EN + 中文', en: 'English', zh: '中文' };
-  function cycleLang() { lang = lang === 'both' ? 'en' : lang === 'en' ? 'zh' : 'both'; }
+  onMount(init);
 
-  // Per-chart counters (row within the chart, and which repeat). Lifted here so
-  // the keyboard can drive them. Keyed by "sectionId:blockIndex" so counters in
-  // different sections never collide.
-  let chart = $state(saved.chart ?? {});
-  let done = $state(saved.done ?? {});   // "sectionId:i" -> true  (row ticked off)
-  let reps = $state(saved.reps ?? {});   // "sectionId:i" -> count (repeat rows)
-  const keyOf = (i) => `${selectedId}:${i}`;
-  const csOf = (i) => chart[keyOf(i)] ?? { row: 1, rep: 1 };
-  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-  function bumpRow(i, d, rows) { const k = keyOf(i); const c = csOf(i); chart = { ...chart, [k]: { ...c, row: clamp(c.row + d, 1, rows) } }; }
-  function bumpRep(i, d, total) { const k = keyOf(i); const c = csOf(i); chart = { ...chart, [k]: { ...c, rep: clamp(c.rep + d, 1, total) } }; }
-  function toggleDone(i) { const k = keyOf(i); done = { ...done, [k]: !done[k] }; }
-  function bumpCount(i, d) { const k = keyOf(i); reps = { ...reps, [k]: Math.max(0, (reps[k] ?? 0) + d) }; }
+  async function open(id) {
+    if (storeOk) {
+      try {
+        current = await getPattern(id);
+        return;
+      } catch {
+        /* fall through to the in-memory copy */
+      }
+    }
+    current = patterns.find((p) => p.id === id) ?? null;
+  }
 
-  // Persist whenever anything changes.
-  $effect(() => { saveProgress(pattern.id, { selectedId, activeBlock, chart, done, reps }); });
+  async function back() {
+    current = null;
+    if (storeOk) await refresh();
+  }
 
-  // Chosen size → indices, used to resolve every graded number.
-  const idx = $derived(indicesFor(pattern.sizes.labels, pattern.chosen));
+  async function remove(record) {
+    const title = record.meta.titleEn ?? record.meta.title;
+    if (!window.confirm(`Remove “${title}” from your patterns? Your saved progress for it is kept.`)) return;
+    if (storeOk) {
+      await deletePattern(record.id);
+      await refresh();
+    } else {
+      patterns = patterns.filter((p) => p.id !== record.id);
+    }
+  }
 
-  // Attach a running row number to each text row (charts don't get one).
-  const items = $derived.by(() => {
-    let n = 0;
-    return (selected?.blocks ?? []).map((block, i) => ({
-      block,
-      i,
-      rowNo: block.type === 'chart' ? null : ++n,
-    }));
-  });
-
-  function selectSection(id) { selectedId = id; activeBlock = 0; }
-
-  // Header chip: "Size 1 · 78cm".
-  const sizeLabel = $derived(
-    pattern.chosen.length === 1
-      ? pattern.chosen[0]
-      : pattern.chosen[0] + '(' + pattern.chosen.slice(1).join(', ') + ')'
-  );
-  const bust = $derived(pattern.sizes.measurements.find((m) => m.name === 'Finished bust'));
-  const bustLabel = $derived(bust ? resolveGraded(bust.values.join(', '), idx) + bust.unit : '');
-
-  // Keyboard: ↑/↓ move the active row, ←/→ step the active chart's row,
-  // +/= and -/_ step the active chart's repeat.
-  function onKey(e) {
-    const blocks = selected?.blocks ?? [];
-    if (blocks.length === 0) return;
-    if (e.key === 'ArrowUp') { activeBlock = Math.max(0, activeBlock - 1); e.preventDefault(); return; }
-    if (e.key === 'ArrowDown') { activeBlock = Math.min(blocks.length - 1, activeBlock + 1); e.preventDefault(); return; }
-
-    const b = blocks[activeBlock];
-    if (b?.type !== 'chart') return;
-    const total = Number(resolveGraded(b.repeat ?? '1', idx)) || 1;
-    if (e.key === 'ArrowLeft') { bumpRow(activeBlock, -1, b.rows); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { bumpRow(activeBlock, 1, b.rows); e.preventDefault(); }
-    else if (e.key === '+' || e.key === '=') { bumpRep(activeBlock, 1, total); e.preventDefault(); }
-    else if (e.key === '-' || e.key === '_') { bumpRep(activeBlock, -1, total); e.preventDefault(); }
+  // "1", or "1(2, 3)" for multi-size — matches PatternView's header chip.
+  function sizeLabel(chosen) {
+    return chosen.length === 1 ? chosen[0] : `${chosen[0]}(${chosen.slice(1).join(', ')})`;
   }
 </script>
 
-<svelte:window on:keydown={onKey} />
+{#if current}
+  {#key current.id}
+    <PatternView pattern={current} onBack={back} />
+  {/key}
+{:else}
+  <div class="library">
+    <header class="lib-top">
+      <h1>My patterns</h1>
+      <span class="count">{patterns.length} saved</span>
+    </header>
 
-<div class="app">
-  <header class="topbar">
-    <div class="title">
-      <h1>{pattern.meta.titleEn ?? pattern.meta.title}</h1>
-      {#if pattern.meta.titleEn}<span class="orig">{pattern.meta.title}</span>{/if}
-    </div>
-    <div class="chips">
-      <span class="chip accent">Size {sizeLabel}{bustLabel ? ` · ${bustLabel}` : ''}</span>
-      <button class="chip toggle" onclick={cycleLang} title="Toggle language">{langLabel[lang]}</button>
-    </div>
-  </header>
+    {#if status === 'loading'}
+      <p class="placeholder">Loading your patterns…</p>
+    {:else if patterns.length === 0}
+      <p class="placeholder">No patterns yet. Importing patterns arrives in Phase 4.</p>
+    {:else}
+      <ul class="grid">
+        {#each patterns as p (p.id)}
+          <li class="card">
+            <button class="card-open" onclick={() => open(p.id)}>
+              <span class="card-title">{p.meta.titleEn ?? p.meta.title}</span>
+              {#if p.meta.titleEn && p.meta.title !== p.meta.titleEn}
+                <span class="card-orig">{p.meta.title}</span>
+              {/if}
+              <span class="card-meta">
+                <span class="pill">Size {sizeLabel(p.chosen)}</span>
+                <span class="pill soft">{p.sections.length} section{p.sections.length === 1 ? '' : 's'}</span>
+              </span>
+            </button>
+            <button class="card-del" title="Remove pattern" aria-label="Remove pattern" onclick={() => remove(p)}>×</button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
 
-  <div class="body">
-    <aside class="sidebar">
-      <div class="side-label">Sections</div>
-      <SectionList sections={pattern.sections} {selectedId} onSelect={selectSection} />
-      <p class="keyhint">↑ ↓ rows · ← → chart row · + − repeat</p>
-    </aside>
-
-    <main class="content">
-      {#if selected}
-        <div class="section-head">
-          <h2>{selected.name}</h2>
-          {#if selected.nameSource && selected.nameSource !== selected.name}
-            <span class="orig">{selected.nameSource}</span>
-          {/if}
-        </div>
-        <div class="blocks">
-          {#each items as item (item.i)}
-            {#if item.block.type === 'chart'}
-              <ChartBlock
-                block={item.block}
-                indices={idx}
-                chosen={pattern.chosen}
-                {lang}
-                row={csOf(item.i).row}
-                rep={csOf(item.i).rep}
-                onRow={(d) => bumpRow(item.i, d, item.block.rows)}
-                onRep={(d) => bumpRep(item.i, d, Number(resolveGraded(item.block.repeat ?? '1', idx)) || 1)}
-                active={activeBlock === item.i}
-                onSelect={() => (activeBlock = item.i)}
-              />
-            {:else}
-              <CounterBlock
-                block={item.block}
-                indices={idx}
-                rowNo={item.rowNo}
-                {lang}
-                active={activeBlock === item.i}
-                done={!!done[`${selectedId}:${item.i}`]}
-                onToggle={() => toggleDone(item.i)}
-                count={reps[`${selectedId}:${item.i}`] ?? 0}
-                onCount={(d) => bumpCount(item.i, d)}
-                onSelect={() => (activeBlock = item.i)}
-              />
-            {/if}
-          {/each}
-        </div>
-      {:else}
-        <p class="placeholder">No section selected.</p>
-      {/if}
-    </main>
+    {#if !storeOk && status === 'ready'}
+      <p class="warn">Offline library storage is unavailable in this browser mode, so patterns won't persist.</p>
+    {/if}
   </div>
-</div>
+{/if}
 
 <style>
-  .app { max-width: 1000px; margin: 0 auto; min-height: 100vh; }
+  .library { max-width: 1000px; margin: 0 auto; min-height: 100vh; padding: 18px 22px; }
+  .lib-top { display: flex; align-items: baseline; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .lib-top h1 { margin: 0; font-size: 1.3rem; }
+  .count { color: var(--text-muted); font-size: 12px; }
 
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; flex-wrap: wrap;
-    padding: 14px 18px; border-bottom: 1px solid var(--border);
-  }
-  .title { display: flex; align-items: baseline; gap: 8px; }
-  .title h1 { margin: 0; font-size: 1.3rem; }
-  .orig { color: var(--text-muted); font-size: 0.85rem; }
-
-  .chips { display: flex; gap: 6px; }
-  .chip {
-    font-size: 12px; padding: 4px 10px; border-radius: 20px;
-    background: var(--card); border: 1px solid var(--border); color: var(--text-muted);
-  }
-  .chip.accent { background: var(--accent-soft); border-color: var(--accent-soft); color: #92600b; }
-  .chip.toggle { cursor: pointer; }
-  .chip.toggle:hover { background: var(--panel); }
-
-  .body { display: grid; grid-template-columns: 220px 1fr; gap: 0; }
-  .sidebar { padding: 14px; border-right: 1px solid var(--border); }
-  .side-label {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--text-muted); margin: 0 10px 8px;
-  }
-  .keyhint { margin: 14px 10px 0; font-size: 11px; color: var(--text-faint); line-height: 1.5; }
-
-  .content { padding: 18px 22px; }
-  .section-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-  .section-head h2 { margin: 0; font-size: 1.1rem; }
   .placeholder { color: var(--text-muted); font-size: 14px; }
-  .blocks { display: flex; flex-direction: column; gap: 6px; max-width: 620px; }
+  .warn { margin-top: 18px; color: var(--text-muted); font-size: 12px; }
 
-  @media (max-width: 640px) {
-    .body { grid-template-columns: 1fr; }
-    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .card { position: relative; }
+  .card-open {
+    display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left;
+    padding: 14px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--card); color: var(--text); cursor: pointer; font: inherit;
   }
+  .card-open:hover { border-color: var(--accent); background: var(--panel); }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-orig { font-size: 12px; color: var(--text-muted); }
+  .card-meta { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--accent-soft); color: #92600b; }
+  .pill.soft { background: var(--panel); color: var(--text-muted); border: 1px solid var(--border); }
+
+  .card-del {
+    position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; line-height: 1;
+    border: 1px solid var(--border); border-radius: 50%; background: var(--card);
+    color: var(--text-muted); cursor: pointer; font-size: 15px;
+  }
+  .card-del:hover { color: #a33; border-color: #a33; }
 </style>

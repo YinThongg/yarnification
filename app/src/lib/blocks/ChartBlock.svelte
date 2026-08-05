@@ -8,19 +8,19 @@
   let {
     block, indices = [], chosen = [], lang = 'both',
     row = 1, rep = 1, onRow = () => {}, onRep = () => {},
+    calibration = null, onCalibration = () => {},
     active = false, onSelect = () => {},
   } = $props();
 
   // Pick the chart variant for the first chosen size label.
   const src = $derived(block.imageBySize?.[chosen[0]] ?? Object.values(block.imageBySize ?? {})[0] ?? '');
-  const rows = $derived(block.rows ?? 1);
+  const rows = $derived(Math.max(1, Number(calibration?.rows ?? block.rows) || 1));
   const repeatTotal = $derived(Number(resolveGraded(block.repeat ?? '1', indices)) || 1);
   const showZh = $derived(lang !== 'en' && !!block.source);
 
-  const cal = block.calibration ?? { topPct: 0.02, botPct: 0.985, topDown: true };
-  let topPct = $state(cal.topPct);
-  let botPct = $state(cal.botPct);
-  let topDown = $state(cal.topDown);
+  const topPct = $derived(Number(calibration?.topPct ?? block.calibration?.topPct ?? 0.02));
+  const botPct = $derived(Number(calibration?.botPct ?? block.calibration?.botPct ?? 0.985));
+  const topDown = $derived(calibration?.topDown ?? block.calibration?.topDown ?? true);
   let calibrating = $state(false);
   let imgEl;
 
@@ -39,8 +39,8 @@
       const rect = imgEl.getBoundingClientRect();
       const move = (ev) => {
         const y = Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height));
-        if (which === 'top') topPct = Math.min(y, botPct - rowH);
-        else botPct = Math.max(y, topPct + rowH);
+        if (which === 'top') onCalibration({ topPct: Math.min(y, botPct - rowH) });
+        else onCalibration({ botPct: Math.max(y, topPct + rowH) });
       };
       const up = () => {
         window.removeEventListener('pointermove', move);
@@ -52,16 +52,16 @@
   }
 </script>
 
-<div class="chart-card" class:focused={active} onclick={onSelect} role="group">
+<div class="chart-card" class:focused={active}>
   <div class="head">
-    <span class="title">
+    <button class="title" onclick={onSelect}>
       {block.name}{#if block.nameSource && block.nameSource !== block.name}<span class="orig"> · {block.nameSource}</span>{/if}
       <span class="sub">rows 1–{rows}</span>
-    </span>
+    </button>
     <div class="repeat">
-      <button onclick={(e) => { e.stopPropagation(); onRep(-1); }} aria-label="previous repeat">−</button>
+      <button onclick={() => { onSelect(); onRep(-1); }} aria-label="previous repeat">−</button>
       <span>Repeat {rep} / {repeatTotal}</span>
-      <button onclick={(e) => { e.stopPropagation(); onRep(1); }} aria-label="next repeat">+</button>
+      <button onclick={() => { onSelect(); onRep(1); }} aria-label="next repeat">+</button>
     </div>
   </div>
 
@@ -69,19 +69,26 @@
     <img bind:this={imgEl} {src} alt={block.name} />
     <div class="band" style="top:{bandTop * 100}%; height:{rowH * 100}%"></div>
     {#if calibrating}
-      <div class="edge" style="top:{topPct * 100}%" onpointerdown={dragHandle('top')}><span>{topLabel}</span></div>
-      <div class="edge" style="top:{botPct * 100}%" onpointerdown={dragHandle('bot')}><span>{botLabel}</span></div>
+      <button class="edge" style="top:{topPct * 100}%" onpointerdown={dragHandle('top')} aria-label="Move first chart edge"><span>{topLabel}</span></button>
+      <button class="edge" style="top:{botPct * 100}%" onpointerdown={dragHandle('bot')} aria-label="Move last chart edge"><span>{botLabel}</span></button>
     {/if}
   </div>
 
   <div class="controls">
-    <button onclick={(e) => { e.stopPropagation(); onRow(-1); }} aria-label="previous row">◀</button>
+    <button onclick={() => { onSelect(); onRow(-1); }} aria-label="previous row">◀</button>
     <span class="rownum">Chart row <b>{row}</b> / {rows}</span>
-    <button onclick={(e) => { e.stopPropagation(); onRow(1); }} aria-label="next row">▶</button>
+    <button onclick={() => { onSelect(); onRow(1); }} aria-label="next row">▶</button>
     <label class="cal">
-      <input type="checkbox" bind:checked={calibrating} onclick={(e) => e.stopPropagation()} /> calibrate
+      <input type="checkbox" bind:checked={calibrating} /> calibrate
     </label>
   </div>
+
+  {#if calibrating}
+    <div class="calibration-controls">
+      <label>rows <input type="number" min="1" value={rows} onchange={(e) => onCalibration({ rows: e.currentTarget.value })} /></label>
+      <label><input type="checkbox" checked={topDown} onchange={(e) => onCalibration({ topDown: e.currentTarget.checked })} /> row 1 at top</label>
+    </div>
+  {/if}
 
   {#if showZh}<p class="source">{block.source}</p>{/if}
 </div>
@@ -89,12 +96,12 @@
 <style>
   .chart-card {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px; cursor: pointer;
+    padding: 12px;
   }
   .chart-card.focused { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
   .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-  .title { font-size: 14px; font-weight: 600; }
+  .title { padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; font: inherit; font-size: 14px; font-weight: 600; }
   .title .orig { color: var(--text-muted); font-weight: 400; }
   .title .sub { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-faint); }
 
@@ -113,7 +120,7 @@
     border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
     transition: top .08s ease;
   }
-  .edge { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #2b6cb0; cursor: ns-resize; }
+  .edge { position: absolute; left: 0; right: 0; height: 0; padding: 0; border: 0; border-top: 2px dashed #2b6cb0; background: transparent; cursor: ns-resize; }
   .edge span {
     position: absolute; right: 4px; top: 2px; font-size: 10px; line-height: 1; color: #2b6cb0;
     background: #fff; padding: 1px 4px; border-radius: 4px; border: 1px solid #bcd;
@@ -127,5 +134,8 @@
   .controls button:hover { background: var(--panel); }
   .rownum { font-variant-numeric: tabular-nums; }
   .cal { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+  .calibration-controls { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 7px; font-size: 11px; color: var(--text-muted); }
+  .calibration-controls label { display: inline-flex; align-items: center; gap: 4px; }
+  .calibration-controls input[type="number"] { width: 54px; padding: 3px 4px; border: 1px solid var(--border); border-radius: 5px; }
   .source { margin: 8px 0 0; font-size: 12px; color: var(--text-faint); line-height: 1.4; }
 </style>
