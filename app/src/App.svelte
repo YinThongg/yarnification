@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import seed from '../patterns/luoshen-vest.json';
+  import demo from './demo-grid.json';
   import { deletePattern, getPattern, listPatterns, putPattern, seedPattern } from './stores/library.js';
   import { loadChosen, saveChosen } from './lib/progress.js';
   import PatternView from './PatternView.svelte';
@@ -32,6 +33,11 @@
   async function init() {
     try {
       await seedPattern(seed);
+      // Seed the grid demo once only, so deleting it actually sticks.
+      if (!localStorage.getItem('yarnification:demoSeeded')) {
+        await putPattern(demo);
+        localStorage.setItem('yarnification:demoSeeded', '1');
+      }
       await refresh();
     } catch {
       // IndexedDB unavailable (e.g. private browsing). Keep the app usable with
@@ -102,6 +108,25 @@
     }
   }
 
+  // Persist an edited grid block's .knit back into the open pattern (edit mode).
+  async function editBlock(sectionId, blockIndex, newKnit) {
+    if (!current) return;
+    // Snapshot first: a plain object graph. Reusing $state proxies here would make
+    // putPattern's structured clone throw DataCloneError (and silently not persist).
+    const base = $state.snapshot(current);
+    const next = {
+      ...base,
+      sections: base.sections.map((s) =>
+        s.id !== sectionId
+          ? s
+          : { ...s, blocks: s.blocks.map((b, i) => (i === blockIndex ? { ...b, knit: newKnit } : b)) }
+      ),
+    };
+    current = next; // same id ⇒ {#key} does not remount, just re-renders
+    if (storeOk) await putPattern(next);
+    else patterns = patterns.map((p) => (p.id === next.id ? next : p));
+  }
+
   // Finished importing a pattern.json: refresh the library and open it.
   async function onImported(record) {
     importing = false;
@@ -118,7 +143,7 @@
 
 {#if current}
   {#key current.id + '|' + chosen.join(',')}
-    <PatternView pattern={current} {chosen} onBack={back} onChangeChosen={changeChosen} />
+    <PatternView pattern={current} {chosen} onBack={back} onChangeChosen={changeChosen} onEditBlock={editBlock} />
   {/key}
 {:else if ingesting}
   {#await ingestPromise then mod}

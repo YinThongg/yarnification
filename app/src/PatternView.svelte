@@ -11,7 +11,7 @@
   // The pattern to track comes from the library (App picks it). `onBack` returns
   // to the library screen. This component is keyed on pattern.id by the parent,
   // so switching patterns remounts it and re-reads that pattern's saved progress.
-  let { pattern, chosen, onBack, onChangeChosen } = $props();
+  let { pattern, chosen, onBack, onChangeChosen, onEditBlock } = $props();
 
   // The parent remounts this component per pattern+size (keyed on id|chosen), so
   // the one-time setup below reads the initial props once. untrack keeps those
@@ -326,6 +326,7 @@
                 done={!!done[`${selectedId}:${item.i}`]}
                 onToggle={() => toggleDone(item.i)}
                 onSelect={() => (activeBlock = item.i)}
+                onEditKnit={(knit) => onEditBlock?.(selectedId, item.i, knit)}
               />
             {:else}
               <CounterBlock

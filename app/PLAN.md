@@ -170,14 +170,29 @@ an **expand-to-fullscreen overlay** for a big view — *not* a separate whiteboa
 block is one knit row → a horizontal strip of cells; consecutive rows stack as cards down the flow.
 Fullscreen is an in-app overlay (close → back exactly where you were), keeping v2's linear reading model.
 
-- [ ] 5.1 **Port `.knit` parser** — move parser to a module + tests.
-- [ ] 5.2 **Real GridBlock** — render cells, symbols, per-type colors, reading direction.
-- [ ] 5.3 **Markers/BOR + collapse + validation** — thick lines, BOR indicator, `...` collapse,
-      count-mismatch flag.
-- [ ] 5.4 **Edit mode** — cycle stitch type, add/remove stitches, add/delete rows.
+- [x] 5.1 **Port `.knit` parser** — `lib/knit.js` (row-level: stitch sequence → expanded cells +
+      markers + net-change validation) with `STITCHES` metadata (symbol/colors/delta ported from the
+      old app). 12 tests in `knit.test.js` (expansion, markers, K2TOG≠K×2, `[±n]` mismatch, BOR,
+      short-row turn, unknown-token flagging, case-insensitivity). All green.
+- [x] 5.2 **Real GridBlock** — renders cells with symbols, per-type colors, RS/WS reading direction
+      (RS flips right-to-left) from `block.knit`; text-stub fallback when absent. **Inline in the card
+      + fullscreen expand overlay** (the decided UX). Also folded in **markers (thick lines), BOR
+      badges, and the count-mismatch `!` flag** early. Demoed on a seeded (once) "Stitch grid demo"
+      (`src/demo-grid.json`: rib, eyelet, raglan-increase w/ markers+BOR, short-row). Verified in-browser.
+- [x] 5.3 **Collapse** — runs of >10 identical cells collapse to `2 · … · 2` (2 either side of every
+      change point: marker/BOR/type-change/edge), with the run total on the ellipsis; fullscreen shows
+      full. Demoed on a `K16 | K1 | K16` row (35 sts → 11 cells shown).
+- [x] 5.4 **Edit mode** — ✎ on a grid card → editable cells (logical order): **tap a cell to cycle**
+      its stitch, **+/− stitch**. Save serializes back to `.knit` (`serializeRow` in knit.js) and
+      persists via `onEditKnit → PatternView → App.editBlock → putPattern`. 4 more tests (serialize
+      round-trip, bracket recompute, nextStitch). NB: `$state.snapshot()` before putPattern (proxy
+      DataCloneError again). *Add/delete whole rows still TODO.*
 - [ ] 5.5 **Make chart interactive** — transcribe one chart → `.knit`, image pinned beside to verify.
-- [ ] 5.6 **Two-size display** — `50(58)` + `appliesTo` size-specific steps.
-- [ ] 5.7 **Ambiguity flagging** — `?`-prefixed tokens highlighted with tooltip.
+- [x] 5.6 **Two-size display** — `50(58)` numbers + `appliesTo` filtering both work (two-size verified
+      in the sizing pass; `appliesTo` is existing). *Per-size grid `.knit` grading isn't modeled — a
+      grid block carries one notation; revisit if a graded written-grid pattern shows up.*
+- [x] 5.7 **Ambiguity flagging** — unrecognized tokens render as a red `?` cell showing the raw token
+      with an "Unrecognized: …" tooltip (never guessed). Demoed with `CDD`/`SKPO`.
 - [ ] 5.8 **Mobile touch + export** — touch the grid; print/export.
 - **Done when:** a fully-written pattern renders as an editable interactive grid at parity with
       `index.html`, and a chart can be turned interactive.

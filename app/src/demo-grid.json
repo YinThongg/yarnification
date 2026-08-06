@@ -1,0 +1,72 @@
+{
+  "id": "grid-demo",
+  "meta": {
+    "title": "Stitch grid demo",
+    "titleEn": "Stitch grid demo",
+    "yarn": "any",
+    "needle": "—",
+    "gauge": "—",
+    "sourceLang": "en",
+    "notes": "A tiny sampler to show the interactive .knit grid: ribbing, eyelets, and a raglan increase row with markers. Not a real garment."
+  },
+  "sizes": { "labels": ["1"], "measurements": [] },
+  "chosen": ["1"],
+  "sections": [
+    {
+      "id": "sampler",
+      "name": "Sampler",
+      "nameSource": "Sampler",
+      "blocks": [
+        {
+          "type": "counter",
+          "kind": "caston",
+          "text": "Cast on {n} sts.",
+          "values": { "n": "24" },
+          "source": "Cast on 24 stitches."
+        },
+        {
+          "type": "grid",
+          "side": "RS",
+          "text": "*(K2, P2)* to end — 2×2 rib",
+          "knit": "K2,P2,K2,P2,K2,P2,K2,P2,K2,P2,K2,P2",
+          "source": "Row 1 (RS): *K2, P2; repeat from * to end. (24 sts)"
+        },
+        {
+          "type": "grid",
+          "side": "RS",
+          "text": "*(K2, YO, K2tog)* to end — eyelets",
+          "knit": "K2,YO,K2TOG,K2,YO,K2TOG,K2,YO,K2TOG,K2,YO,K2TOG,K2,YO,K2TOG,K2,YO,K2TOG [+0]",
+          "source": "Row 3 (RS): *K2, YO, K2tog; repeat from * to end. (24 sts — YO and decrease cancel)"
+        },
+        {
+          "type": "grid",
+          "side": "RS",
+          "text": "Raglan increase row — 4 markers, BOR, +4 sts",
+          "knit": "BOR,K5,M1R | K1 | M1L,K10,M1R | K1 | M1L,K5,BOR [+4]",
+          "source": "Row 5 (RS): BOR, *knit to marker, M1R, sm, K1, sm, M1L; rep, knit to end. (+4 sts)"
+        },
+        {
+          "type": "grid",
+          "side": "WS",
+          "text": "Short-row turn — DS then purl back",
+          "knit": "turn,DS,P10,turn",
+          "source": "Row 6 (WS): turn, DS, P10, turn. (short row across part of the piece)"
+        },
+        {
+          "type": "grid",
+          "side": "RS",
+          "text": "Long runs collapse with … (2 either side of a marker)",
+          "knit": "K16,M1R | K1 | M1L,K16 [+2]",
+          "source": "Row 7 (RS): K16, M1R, sm, K1, sm, M1L, K16. (long knit runs collapse)"
+        },
+        {
+          "type": "grid",
+          "side": "RS",
+          "text": "Unknown stitches are flagged, never guessed",
+          "knit": "K4,CDD,K4,SKPO,K4",
+          "source": "Row 8 (RS): K4, CDD, K4, SKPO, K4. (CDD/SKPO aren't in the token set → flagged red)"
+        }
+      ]
+    }
+  ]
+}
