@@ -1,6 +1,7 @@
 // .knit row parser — turns a compact stitch sequence into an expanded cell array
-// the grid renders. See KNIT-NOTATION.md for the full format. This module is the
-// row-level slice: one row's stitch sequence → cells + markers + net-change check.
+// the grid renders. See the yarnification-convert skill's knit-notation reference
+// for the full format. This module is the row-level slice: one row's stitch
+// sequence → cells + markers + net-change check.
 //
 //   parseRow("K24,M1R | K1 | M1L,K25 [+4]")
 //     → { cells: [K×24, M1R, «marker» K, «marker» M1L, K×25], markers:[25,26],
@@ -8,15 +9,20 @@
 //
 // Cells are logical (RS knit order); the renderer handles WS right-to-left flip.
 
-// Per-stitch display + arithmetic. Symbols/colors ported from the old index.html;
-// `delta` is the net stitch-count change the token contributes (KNIT-NOTATION).
+// Per-stitch display + arithmetic. `delta` is the net stitch-count change the
+// token contributes.
 export const STITCHES = {
   K:     { symbol: '·',  label: 'K',    desc: 'Knit',              delta: 0,  bg: '#f8fafc', border: '#cbd5e1', text: '#334155' },
   P:     { symbol: '–',  label: 'P',    desc: 'Purl',              delta: 0,  bg: '#fffbeb', border: '#f59e0b', text: '#92400e' },
+  K1TBL: { symbol: '⌁',  label: 'K1 tbl', desc: 'Knit Through Back Loop', delta: 0, bg: '#f8fafc', border: '#94a3b8', text: '#334155' },
   YO:    { symbol: 'O',  label: 'YO',   desc: 'Yarn Over',         delta: 1,  bg: '#f0fdf4', border: '#6ee7b7', text: '#065f46' },
   K2TOG: { symbol: '/',  label: 'K2tog',desc: 'Knit 2 Together',   delta: -1, bg: '#fff1f2', border: '#fda4af', text: '#9f1239' },
   SSK:   { symbol: '\\', label: 'SSK',  desc: 'Slip Slip Knit',    delta: -1, bg: '#faf5ff', border: '#c4b5fd', text: '#5b21b6' },
+  P2TOG: { symbol: '/',  label: 'P2tog',desc: 'Purl 2 Together',   delta: -1, bg: '#fff7ed', border: '#fdba74', text: '#9a3412' },
+  SSP:   { symbol: '\\', label: 'SSP',  desc: 'Slip Slip Purl',    delta: -1, bg: '#fdf4ff', border: '#d8b4fe', text: '#6b21a8' },
   SL:    { symbol: 'v',  label: 'Sl',   desc: 'Slip',              delta: 0,  bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
+  SLK:   { symbol: 'v',  label: 'Sl kw',desc: 'Slip Knitwise',     delta: 0,  bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
+  SLP:   { symbol: 'v',  label: 'Sl pw',desc: 'Slip Purlwise',     delta: 0,  bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
   M1R:   { symbol: '+',  label: 'M1R',  desc: 'Make 1 Right',      delta: 1,  bg: '#f0fdf4', border: '#4ade80', text: '#14532d' },
   M1L:   { symbol: '+',  label: 'M1L',  desc: 'Make 1 Left',       delta: 1,  bg: '#f0fdf4', border: '#4ade80', text: '#14532d' },
   M1RP:  { symbol: '+',  label: 'M1Rp', desc: 'Make 1 Right Purl', delta: 1,  bg: '#fefce8', border: '#fbbf24', text: '#78350f' },
@@ -28,7 +34,7 @@ export const STITCHES = {
 };
 
 // The cycle order for edit mode (matches the old app's tap-to-cycle list).
-export const STITCH_ORDER = ['K', 'P', 'YO', 'K2TOG', 'SSK', 'SL', 'M1R', 'M1L', 'M1RP', 'M1LP', 'KFB', 'DS'];
+export const STITCH_ORDER = ['K', 'P', 'K1TBL', 'YO', 'K2TOG', 'SSK', 'P2TOG', 'SSP', 'SL', 'SLK', 'SLP', 'M1R', 'M1L', 'M1RP', 'M1LP', 'KFB', 'DS'];
 
 // Classify one comma token → { type, count } | { bor } | { turn } | { unknown }.
 function classify(raw) {

@@ -68,3 +68,23 @@ export function clearProgress(patternId) {
     // storage unavailable — in-memory UI state is still reset by the caller
   }
 }
+
+// Remove every progress entry and the chosen-size preference for one pattern.
+// Progress keys include the size combination (for example `vest:1+2`), so
+// deleting a library item must clear the whole prefix rather than one key.
+export function clearPatternState(patternId) {
+  try {
+    const all = readAll();
+    const prefix = `${patternId}:`;
+    for (const key of Object.keys(all)) {
+      if (key === patternId || key.startsWith(prefix)) delete all[key];
+    }
+    localStorage.setItem(KEY, JSON.stringify(all));
+
+    const chosen = readChosen();
+    delete chosen[patternId];
+    localStorage.setItem(CHOSEN_KEY, JSON.stringify(chosen));
+  } catch {
+    // storage unavailable — there is no persistent state to clean up
+  }
+}

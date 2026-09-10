@@ -39,10 +39,17 @@
           "source": "Row 3 (RS): *K2, YO, K2tog; repeat from * to end. (24 sts — YO and decrease cancel)"
         },
         {
+          "type": "counter",
+          "kind": "repeat",
+          "text": "Work the rib and eyelet sequence three times total.",
+          "repeat": "3",
+          "source": "Repeat the two-row sampler sequence 3 times total."
+        },
+        {
           "type": "grid",
           "side": "RS",
           "text": "Raglan increase row — 4 markers, BOR, +4 sts",
-          "knit": "BOR,K5,M1R | K1 | M1L,K10,M1R | K1 | M1L,K5,BOR [+4]",
+          "knit": "BOR,K6,M1R | K1 | M1L,K10,M1R | K1 | M1L,K6,BOR [+4]",
           "source": "Row 5 (RS): BOR, *knit to marker, M1R, sm, K1, sm, M1L; rep, knit to end. (+4 sts)"
         },
         {
@@ -56,14 +63,14 @@
           "type": "grid",
           "side": "RS",
           "text": "Long runs collapse with … (2 either side of a marker)",
-          "knit": "K16,M1R | K1 | M1L,K16 [+2]",
-          "source": "Row 7 (RS): K16, M1R, sm, K1, sm, M1L, K16. (long knit runs collapse)"
+          "knit": "K13,M1R | K1 | M1L,K14 [+2]",
+          "source": "Row 7 (RS): K13, M1R, sm, K1, sm, M1L, K14. (long knit runs collapse)"
         },
         {
           "type": "grid",
           "side": "RS",
           "text": "Unknown stitches are flagged, never guessed",
-          "knit": "K4,CDD,K4,SKPO,K4",
+          "knit": "K9,?CDD,K9,?SKPO,K10",
           "source": "Row 8 (RS): K4, CDD, K4, SKPO, K4. (CDD/SKPO aren't in the token set → flagged red)"
         }
       ]

@@ -15,9 +15,28 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
 
-# Sample pattern content — copyrighted, kept out of the public repo
+# Private pattern sources and generated pattern data
 *.pdf
+*.bundle.json
+*.pattern.json
+*.knit
+*.ocr.txt
+*.extracted.txt
+*.source.txt
+tmp/
+private/
+.yarnification-work/
+.yarnification-output/
+knitting/
+page-*.png
+*-page-*.png
+chart-crop-*
+*-chart-*.png
+*-chart-*.jpg
+*-chart-*.jpeg
 app/public/chart*.png
 app/public/charts/
 app/patterns/

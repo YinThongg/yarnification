@@ -1,7 +1,7 @@
 # Yarnification v2 — Build Plan
 
 A knitting pattern tracker you can use offline. The app is a **renderer + tracker only** — it
-never calls a model. Claude (in the loop, on request) converts a pattern PDF into the data file
+never calls a model. The repo-scoped Codex skill converts a pattern PDF or ingestion bundle into the data file
 the app loads. Built as a Svelte + Vite PWA.
 
 ## Core model
@@ -26,13 +26,13 @@ the data; only `chosen` is shown. Rare size-specific whole steps carry an `appli
 
 ## Design rules (locked)
 
-- No AI/network in the app. Patterns arrive as a data file Claude produces.
+- No AI/network in the app. Patterns arrive as a data file produced with the Codex conversion skill.
 - Charts are **cropped from the PDF**, never redrawn. Transcribing a chart to an interactive
   grid is an on-demand, per-chart action ("Make interactive"), verified against the crop.
 - Never strip sizes from the data. Reading view shows only `chosen`.
 - Preserve original-language source text per row; translation is additive.
 - Flag unrecognized stitches on the cell — never guess silently.
-- Keep the old `index.html` app untouched; v2 lives in `app/`.
+- Keep the tracker centered on the linear pattern-reading flow in this app.
 
 ---
 
@@ -43,7 +43,7 @@ demo ("done when"). Build top to bottom; don't start a phase until the previous 
 
 ### Phase 0 — Foundation  ✅ (done)
 - [x] 0.1 Vite + Svelte 5 scaffold in `app/`.
-- [x] 0.2 Chart row-band overlay prototype (`lib/ChartOverlay.svelte`) on the real 77-row 图表2.
+- [x] 0.2 Chart row-band overlay prototype, later folded into `lib/blocks/ChartBlock.svelte`.
 - [x] 0.3 Launch config wired for preview.
 
 ---
@@ -51,7 +51,7 @@ demo ("done when"). Build top to bottom; don't start a phase until the previous 
 ### Phase 1 — Data model + static render  ✅ (done)
 Render the mockup from real data, read-only. No persistence, no editing.
 
-- [x] 1.1 **Schema** — `patterns/SCHEMA.md`: `meta`, `sizes`, `chosen`, `sections[].blocks[]`
+- [x] 1.1 **Schema** — `.agents/skills/yarnification-convert/references/pattern-json.md`: `meta`, `sizes`, `chosen`, `sections[].blocks[]`
       with the three block types, graded values stored whole.
 - [x] 1.2 **Size resolver** — `lib/size.js` (`parseGraded`, `indicesFor`, `resolveGraded`,
       `resolveText`) + `size.test.js` (10 tests, `npm test`). Handles `a, b, c (d, e, f) [g, h, i]`.
@@ -61,7 +61,7 @@ Render the mockup from real data, read-only. No persistence, no editing.
 - [x] 1.4 **App shell** — `App.svelte`: header (title + resolved size/lang chips), sidebar +
       main regions, loads `luoshen-vest.json`. Theme tokens in `app.css`. Server pinned to :5175.
 - [x] 1.5 **SectionList** — `lib/SectionList.svelte`, lists sections (name + 原文), tracks selected.
-- [x] 1.6 **CounterBlock** — `lib/blocks/CounterBlock.svelte`, old-app row style: `[#][←/→]text`,
+- [x] 1.6 **CounterBlock** — `lib/blocks/CounterBlock.svelte`, compact row style: `[#][←/→]text`,
       resolved numbers, target, kind tags, active highlight.
 - [x] 1.7 **ChartBlock** — `lib/blocks/ChartBlock.svelte`, chart-card with the row-band overlay,
       per-size image, repeat counter, calibrate. Verified stepping the band on real 图表1.
@@ -131,7 +131,7 @@ Installable, works with no internet.
 ---
 
 ### Phase 4 — Ingestion pipeline (the "loop me in" flow)  ✅ (done)
-Get a new PDF in with minimal tokens. App does extraction; Claude does conversion.
+Get a new PDF in with minimal tokens. The app does local extraction; the Codex skill does conversion.
 
 - [x] 4.1 **PDF upload + render** — `lib/pdf.js` (bundled worker via `?url`, offline/CSP-safe) +
       `Ingest.svelte` (reached from the library's "+ Add pattern"). Verified on the real 20-page vest.
@@ -140,7 +140,7 @@ Get a new PDF in with minimal tokens. App does extraction; Claude does conversio
       (y-bucket → x-order → top-down); mixed CJK/Latin. Pulled the cast-on, `蕾丝底边`, chart line,
       and the whole spec page (sizes/bust/yarn/gauge) cleanly.
 - [x] 4.3 **Section detection** — light heuristic (`HEADER_RE`, short lines) → `sectionHints` in the
-      bundle. Claude does the real structuring; hints are just an assist.
+      bundle. The Codex skill does the real structuring; hints are just an assist.
 - [x] 4.4 **Chart-crop tool** — drag a box on a rendered page → PNG crop (canvas→data-URL, CSS→canvas
       px scaling). Captured crops listed with remove/renumber (`chart1..N` ↔ 图表1..N).
 - [x] 4.5 **Ask-before-generating UI** — 3 questions (size* / language / scope) with extracted
@@ -154,25 +154,25 @@ Get a new PDF in with minimal tokens. App does extraction; Claude does conversio
       → delete draft → open it. Warns if a chart has no matching crop.
 - [x] 4.8 **Paste-JSON slot** — same dialog: a textarea path alongside the file picker.
 - **Done when:** upload the vest PDF, crop its charts, answer 3 questions, hand the bundle to
-      Claude, drop the returned JSON back, and it appears as a trackable pattern. ✅ (round-trip
-      verified: Claude's JSON had empty `imageBySize`; the crop was merged in and rendered.)
+      Codex with `$yarnification-convert`, drop the returned JSON back, and it appears as a trackable pattern. ✅ (round-trip
+      verified: Codex's JSON had empty `imageBySize`; the crop was merged in and rendered.)
 
-> The chart crops never go to Claude — they stay in the `drafts` store and merge back in on import by
-> `draftId` + `chartId`. The bundle to Claude is small text. (Resolves the Phase-4 handoff open question.)
+> The chart crops never leave the app — they stay in the `drafts` store and merge back in on import by
+> `draftId` + `chartId`. The bundle given to Codex is small text. (Resolves the Phase-4 handoff open question.)
 
 ---
 
 ### Phase 5 — Grid depth + polish
-Parity with the old app's power features, plus the new ones.
+Deepen the interactive grid while preserving the app's linear reading model.
 
 **Grid UX (decided):** interactive grids render **inline in the block card** (like charts do), with
 an **expand-to-fullscreen overlay** for a big view — *not* a separate whiteboard page. A v2 `grid`
 block is one knit row → a horizontal strip of cells; consecutive rows stack as cards down the flow.
 Fullscreen is an in-app overlay (close → back exactly where you were), keeping v2's linear reading model.
 
-- [x] 5.1 **Port `.knit` parser** — `lib/knit.js` (row-level: stitch sequence → expanded cells +
-      markers + net-change validation) with `STITCHES` metadata (symbol/colors/delta ported from the
-      old app). 12 tests in `knit.test.js` (expansion, markers, K2TOG≠K×2, `[±n]` mismatch, BOR,
+- [x] 5.1 **`.knit` parser** — `lib/knit.js` (row-level: stitch sequence → expanded cells +
+      markers + net-change validation) with `STITCHES` metadata (symbol/colors/delta). 12 tests in
+      `knit.test.js` (expansion, markers, K2TOG≠K×2, `[±n]` mismatch, BOR,
       short-row turn, unknown-token flagging, case-insensitivity). All green.
 - [x] 5.2 **Real GridBlock** — renders cells with symbols, per-type colors, RS/WS reading direction
       (RS flips right-to-left) from `block.knit`; text-stub fallback when absent. **Inline in the card
@@ -194,8 +194,8 @@ Fullscreen is an in-app overlay (close → back exactly where you were), keeping
 - [x] 5.7 **Ambiguity flagging** — unrecognized tokens render as a red `?` cell showing the raw token
       with an "Unrecognized: …" tooltip (never guessed). Demoed with `CDD`/`SKPO`.
 - [ ] 5.8 **Mobile touch + export** — touch the grid; print/export.
-- **Done when:** a fully-written pattern renders as an editable interactive grid at parity with
-      `index.html`, and a chart can be turned interactive.
+- **Done when:** a fully-written pattern renders as an editable interactive grid, and a chart can
+      be turned interactive.
 
 ---
 
@@ -215,7 +215,7 @@ Fullscreen is an in-app overlay (close → back exactly where you were), keeping
 - **Recommended-stitches skill (agent-side)** — beyond the original instructions, an optional
   "recommended" track computed from size + gauge: adjusted stitch counts / repeat counts, e.g.
   "repeat step 3 — 8(9) 10 times" as a `size S(M) rec` line next to the original. Lives with the
-  Claude-in-the-loop generation, surfaced as a secondary line/tab per block.
+  Codex-in-the-loop generation, surfaced as a secondary line/tab per block.
 
 ## Open questions (decide when we reach them)
 - Sidebar layout on mobile (drawer vs. top tabs).

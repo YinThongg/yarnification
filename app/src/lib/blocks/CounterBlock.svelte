@@ -1,5 +1,5 @@
 <script>
-  import { resolveText } from '../size.js';
+  import { resolveGraded, resolveText } from '../size.js';
 
   // An instruction row. Normal rows get a checkbox (done/not). Repeat rows
   // ("repeat until …") get a +/- counter instead. Handles `grid` blocks too
@@ -12,6 +12,7 @@
   } = $props();
 
   const isRepeat = $derived(block.kind === 'repeat');
+  const repeatTotal = $derived(block.repeat ? Number(resolveGraded(block.repeat, indices)) || null : null);
   const text = $derived(resolveText(block.text ?? '', block.values ?? {}, indices));
   const target = $derived(block.target ? resolveText(block.target, block.values ?? {}, indices) : null);
   const until = $derived(block.until ?? null);
@@ -29,9 +30,9 @@
 <div class="row" class:active class:done={done && !isRepeat} onclick={() => onSelect()} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter') onSelect(); }}>
   {#if isRepeat}
     <span class="counter" role="group">
-      <button class="cbtn" onclick={(e) => { e.stopPropagation(); onCount(-1); }} aria-label="one fewer">−</button>
-      <span class="cnum">×{count}</span>
-      <button class="cbtn" onclick={(e) => { e.stopPropagation(); onCount(1); }} aria-label="one more">+</button>
+      <button class="cbtn" disabled={count <= 0} onclick={(e) => { e.stopPropagation(); onCount(-1, repeatTotal); }} aria-label="one fewer">−</button>
+      <span class="cnum">{repeatTotal ? `${count} / ${repeatTotal}` : `×${count}`}</span>
+      <button class="cbtn" disabled={repeatTotal && count >= repeatTotal} onclick={(e) => { e.stopPropagation(); onCount(1, repeatTotal); }} aria-label="one more">+</button>
     </span>
   {:else}
     <input
@@ -75,7 +76,8 @@
     background: var(--card); cursor: pointer; font-size: 13px; line-height: 1;
   }
   .cbtn:hover { background: var(--panel); }
-  .cnum { min-width: 26px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .cbtn:disabled { opacity: 0.4; cursor: default; }
+  .cnum { min-width: 38px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--accent); }
 
   .num { flex: none; width: 20px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-faint); }
   .dir { flex: none; width: 14px; text-align: center; color: var(--accent); font-size: 13px; }

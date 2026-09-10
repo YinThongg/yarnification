@@ -1,18 +1,21 @@
 <script>
   import { onMount } from 'svelte';
-  import seed from '../patterns/luoshen-vest.json';
   import demo from './demo-grid.json';
   import { deletePattern, getPattern, listPatterns, putPattern, seedPattern } from './stores/library.js';
-  import { loadChosen, saveChosen } from './lib/progress.js';
+  import { clearPatternState, loadChosen, saveChosen } from './lib/progress.js';
   import PatternView from './PatternView.svelte';
   import ImportDialog from './ImportDialog.svelte';
+  // Local pattern seeds are optional and ignored by Git. A clean checkout has
+  // none; developers can still keep private JSON seeds under app/patterns/.
+  const privateSeedModules = import.meta.glob('../patterns/*.json', { eager: true, import: 'default' });
+  const privateSeeds = Object.values(privateSeedModules);
   // Ingest pulls in pdf.js (~400KB); load it only when the user opens the flow,
   // so the library + tracker stay lightweight for the common case.
   let ingestPromise = $state(null);
 
   // Router state: `current` null → the library ("My patterns") screen; otherwise
   // the opened pattern is tracked in PatternView. The library lives in IndexedDB
-  // (stores/library.js); the bundled vest is seeded in on first run.
+  // (stores/library.js); optional local patterns can be seeded on first run.
   let patterns = $state([]);      // installed pattern records, newest first
   let current = $state(null);     // opened full pattern, or null
   let chosen = $state([]);        // size label(s) for the open pattern (picker-controlled)
@@ -32,7 +35,7 @@
 
   async function init() {
     try {
-      await seedPattern(seed);
+      for (const seed of privateSeeds) await seedPattern(seed);
       // Seed the grid demo once only, so deleting it actually sticks.
       if (!localStorage.getItem('yarnification:demoSeeded')) {
         await putPattern(demo);
@@ -41,9 +44,10 @@
       await refresh();
     } catch {
       // IndexedDB unavailable (e.g. private browsing). Keep the app usable with
-      // the bundled seed pattern in memory; the library just won't persist.
+      // any local seeds plus the synthetic demo in memory; the library just
+      // won't persist.
       storeOk = false;
-      patterns = [{ ...seed, addedAt: Date.now() }];
+      patterns = [...privateSeeds, demo].map((seed, index) => ({ ...seed, addedAt: Date.now() - index }));
     }
     status = 'ready';
   }
@@ -82,13 +86,14 @@
 
   async function remove(record) {
     const title = record.meta.titleEn ?? record.meta.title;
-    if (!window.confirm(`Remove “${title}” from your patterns? Your saved progress for it is kept.`)) return;
+    if (!window.confirm(`Remove “${title}” and all of its saved progress?`)) return;
     if (storeOk) {
       await deletePattern(record.id);
       await refresh();
     } else {
       patterns = patterns.filter((p) => p.id !== record.id);
     }
+    clearPatternState(record.id);
   }
 
   // Install a finished pattern from the ingestion flow, then return to the

@@ -11,7 +11,7 @@
 const DB_NAME = 'yarnification';
 const DB_VERSION = 2;
 const STORE = 'patterns';
-const DRAFTS = 'drafts'; // ingestion drafts: chart crops + answers awaiting Claude's JSON
+const DRAFTS = 'drafts'; // ingestion drafts: chart crops + answers awaiting Codex's JSON
 
 let dbPromise = null;
 
@@ -102,7 +102,7 @@ export async function seedPattern(pattern) {
 
 // --- Ingestion drafts -------------------------------------------------------
 // A draft holds the chart crops (as PNG data-URLs) + the user's answers while
-// the extracted text is out with Claude. On import we look the draft up by id
+// the extracted text is out with Codex. On import we look the draft up by id
 // and merge its crops into the returned pattern, then delete it.
 
 export function saveDraft(draft) {

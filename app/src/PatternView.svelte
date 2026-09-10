@@ -49,7 +49,11 @@
   function bumpRow(i, d, rows) { const k = keyOf(i); const c = csOf(i); chart = { ...chart, [k]: { ...c, row: clamp(c.row + d, 1, rows) } }; }
   function bumpRep(i, d, total) { const k = keyOf(i); const c = csOf(i); chart = { ...chart, [k]: { ...c, rep: clamp(c.rep + d, 1, total) } }; }
   function toggleDone(i) { const k = keyOf(i); done = { ...done, [k]: !done[k] }; }
-  function bumpCount(i, d) { const k = keyOf(i); reps = { ...reps, [k]: Math.max(0, (reps[k] ?? 0) + d) }; }
+  function bumpCount(i, d, total = null) {
+    const k = keyOf(i);
+    const next = Math.max(0, (reps[k] ?? 0) + d);
+    reps = { ...reps, [k]: total ? Math.min(total, next) : next };
+  }
 
   // Chosen size → indices, used to resolve every graded number.
   const idx = $derived(indicesFor(pattern.sizes.labels, chosen));
@@ -310,6 +314,7 @@
                 row={csOf(item.i).row}
                 rep={csOf(item.i).rep}
                 calibration={calibrationOf(item.i, item.block)}
+                legendImage={pattern.meta.symbolLegendImage}
                 onRow={(d) => { activeBlock = item.i; bumpRow(item.i, d, chartRows(item.i, item.block)); }}
                 onRep={(d) => bumpRep(item.i, d, Number(resolveGraded(item.block.repeat ?? '1', idx)) || 1)}
                 onCalibration={(next) => setCalibration(item.i, item.block, next)}
@@ -338,7 +343,7 @@
                 done={!!done[`${selectedId}:${item.i}`]}
                 onToggle={() => toggleDone(item.i)}
                 count={reps[`${selectedId}:${item.i}`] ?? 0}
-                onCount={(d) => bumpCount(item.i, d)}
+                onCount={(d, total) => bumpCount(item.i, d, total)}
                 onSelect={() => (activeBlock = item.i)}
               />
             {/if}

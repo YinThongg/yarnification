@@ -22,6 +22,13 @@ test('does not misparse K2TOG as K×2', () => {
   assert.equal(r.net, -2);
 });
 
+test('supports twisted, purl-decrease, and directional slip tokens', () => {
+  const r = parseRow('K1TBL,SLK,SLP,P2TOG,SSP [-2]');
+  assert.deepEqual(types(r), ['K1TBL', 'SLK', 'SLP', 'P2TOG', 'SSP']);
+  assert.equal(r.net, -2);
+  assert.equal(r.mismatch, false);
+});
+
 test('YO and a decrease cancel (eyelet row nets zero)', () => {
   const r = parseRow('K2,YO,K2TOG');
   assert.equal(r.net, 0);

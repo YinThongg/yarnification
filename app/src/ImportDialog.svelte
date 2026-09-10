@@ -1,7 +1,7 @@
 <script>
   import { getDraft, deleteDraft, putPattern } from './stores/library.js';
 
-  // Import a pattern.json returned by Claude: paste it or pick the file, we
+  // Import a pattern.json returned by Codex: paste it or pick the file, we
   // validate it, merge the chart crops saved in the matching draft back into the
   // chart blocks, install it, and open it. `onImported(record)` hands back the
   // saved pattern; `onClose` dismisses.
@@ -106,7 +106,7 @@
       <button class="x" onclick={onClose} aria-label="Close">×</button>
     </header>
 
-    <p class="lead">Paste the JSON Claude returned, or choose the file. Its chart images are merged
+    <p class="lead">Paste the JSON Codex returned, or choose the file. Its chart images are merged
       from the crops you captured when exporting.</p>
 
     <label class="filebtn">

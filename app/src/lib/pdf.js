@@ -53,7 +53,7 @@ function linesFromItems(items) {
 }
 
 // Per-page reconstructed text. `text` is newline-joined lines; `lines` is the
-// array. This is a *draft* for the export bundle — Claude does the real parsing.
+// array. This is a *draft* for the export bundle — Codex does the real parsing.
 export async function extractText(doc) {
   const pages = [];
   for (let n = 1; n <= doc.numPages; n++) {

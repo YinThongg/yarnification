@@ -1,0 +1,4 @@
+interface:
+  display_name: "Yarnification Convert"
+  short_description: "Convert knitting patterns into validated app data"
+  default_prompt: "Use $yarnification-convert to convert this knitting pattern bundle into validated Yarnification pattern.json."

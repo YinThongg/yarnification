@@ -4,7 +4,7 @@
   import { saveDraft } from './stores/library.js';
 
   // Ingestion flow: upload a pattern PDF → render + extract text locally → crop
-  // its charts → answer 3 questions → export a bundle for Claude. Claude returns
+  // its charts → answer 3 questions → export a bundle for Codex. Codex returns
   // pattern.json (imported elsewhere); the cropped images are kept in a draft and
   // merged back in on import. `onBack` returns to the library.
   let { onBack, onImport } = $props();
@@ -19,6 +19,7 @@
   let pagesText = $state([]);  // [{ page, lines, text }]
 
   let charts = $state([]);     // [{ id, page, dataUrl }] cropped charts
+  let confirmedNoCharts = $state(false);
   let cropPage = $state(null); // page index (0-based) in crop mode, or null
   let selection = $state(null);// active drag rect in CSS px { x, y, w, h }
   let dragging = false;
@@ -48,6 +49,7 @@
     canvases = [];
     pagesText = [];
     charts = [];
+    confirmedNoCharts = false;
     cropPage = null;
     exportMsg = '';
     promptText = '';
@@ -115,6 +117,7 @@
     tmp.height = sh;
     tmp.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
     charts = [...charts, { id: `chart${charts.length + 1}`, page: i + 1, dataUrl: tmp.toDataURL('image/png') }];
+    confirmedNoCharts = false;
     cropPage = null;
   }
   function removeChart(id) {
@@ -122,7 +125,7 @@
     charts = charts.filter((c) => c.id !== id).map((c, n) => ({ ...c, id: `chart${n + 1}` }));
   }
 
-  // --- Section hints (light heuristic; Claude does the real structuring) -----
+  // --- Section hints (light heuristic; Codex does the real structuring) ------
   const HEADER_RE = /(蕾丝|底边|身体|前片|后片|前身|后身|袖|领|图表|说明|尺寸|尺码|密度|材料|用针|border|body|front|back|sleeve|neck|chart|gauge)/i;
   const sectionHints = $derived.by(() => {
     const hits = [];
@@ -144,10 +147,11 @@
   function buildBundle() {
     return {
       kind: 'yarnification-bundle',
-      version: 1,
+      version: 2,
       draftId,
       source: { fileName, numPages },
       answers: { ...answers },
+      chartReview: charts.length > 0 ? 'captured' : 'confirmed-none',
       charts: charts.map((c) => ({ id: c.id, page: c.page })), // no image data — kept in the draft
       sectionHints,
       pages: pagesText.map((p) => ({ page: p.page, text: p.text })),
@@ -156,11 +160,10 @@
 
   function buildPrompt(bundle) {
     return [
-      'You are converting a knitting pattern into Yarnification’s pattern.json.',
-      'Rules: follow patterns/SCHEMA.md; keep ALL sizes in `sizes` (chosen = the answer below);',
-      'preserve original-language `source` text per row; each 图表N/chart becomes a `chart` block',
-      `whose id matches the crop ids below; set the top-level "draftId" to "${bundle.draftId}" so`,
-      'the app can merge the cropped chart images back in on import. Return ONLY the JSON.',
+      'Use $yarnification-convert from this repository to convert this bundle into Yarnification pattern.json.',
+      'Preserve every source size, expand grids for the chosen size, keep repeat trackers, and include',
+      'exactly one chart block for every crop id. Copy the bundle draftId exactly so the app can merge',
+      'the private chart crops on import. Validate the result against this bundle. Return only JSON.',
       '',
       'BUNDLE:',
       '```json',
@@ -198,7 +201,7 @@
     a.remove();
     URL.revokeObjectURL(url);
     exportMsg = saved
-      ? 'Bundle downloaded. Give it to Claude, then import the returned pattern.json.'
+      ? 'Bundle downloaded. Give it to Codex with $yarnification-convert, then import the returned pattern.json.'
       : 'Bundle downloaded, but the chart crops could not be saved (private mode) — importing may lose images.';
   }
 
@@ -214,10 +217,12 @@
       /* clipboard blocked — the textarea below lets the user copy manually */
     }
     exportMsg = (copied ? 'Prompt copied to clipboard. ' : 'Prompt ready below (copy it). ') +
-      (saved ? 'Paste it to Claude, then import the returned JSON.' : '(Crops could not be saved — private mode.)');
+      (saved ? 'Paste it to Codex, then import the returned JSON.' : '(Crops could not be saved — private mode.)');
   }
 
-  const canExport = $derived(status === 'ready' && answers.sizes.trim().length > 0);
+  const canExport = $derived(
+    status === 'ready' && answers.sizes.trim().length > 0 && (charts.length > 0 || confirmedNoCharts)
+  );
 </script>
 
 <div class="ingest">
@@ -228,7 +233,7 @@
 
   <div class="intro">
     <p>Upload a pattern PDF. The app reads it locally — text and chart crops are extracted here,
-      then handed to Claude to convert into a trackable pattern. Nothing is uploaded to a server.</p>
+      then handed to Codex to convert into a trackable pattern. Nothing is uploaded to a server.</p>
     <label class="filebtn">
       {status === 'idle' ? 'Choose PDF…' : 'Choose a different PDF…'}
       <input type="file" accept="application/pdf,.pdf" onchange={onFile} />
@@ -285,7 +290,10 @@
         <section class="panel">
           <h2 class="col-title">Charts captured</h2>
           {#if charts.length === 0}
-            <p class="hint">None yet. Click “Crop chart” under a page, then drag a box around a chart.</p>
+            <p class="hint">None yet. Inspect every page, then crop every knitting chart.</p>
+            <label class="confirm-none">
+              <input type="checkbox" bind:checked={confirmedNoCharts} /> I checked every page and this PDF has no charts.
+            </label>
           {:else}
             <ul class="chartlist">
               {#each charts as c (c.id)}
@@ -302,7 +310,7 @@
         </section>
 
         <section class="panel">
-          <h2 class="col-title">Details for Claude</h2>
+          <h2 class="col-title">Details for Codex</h2>
           <label class="q">Which size(s)? <span class="req">*</span>
             <input type="text" bind:value={answers.sizes} placeholder="e.g. 1  or  1, 2" />
           </label>
@@ -329,7 +337,8 @@
             <button class="primary" disabled={!canExport} onclick={downloadBundle}>⬇ Download bundle.json</button>
             <button disabled={!canExport} onclick={copyPrompt}>📋 Copy prompt</button>
           </div>
-          {#if !canExport}<p class="hint">Enter at least one size to export.</p>{/if}
+          {#if !answers.sizes.trim()}<p class="hint">Enter at least one chosen size to export.</p>{/if}
+          {#if charts.length === 0 && !confirmedNoCharts}<p class="hint">Crop every chart, or confirm that the PDF has none.</p>{/if}
           {#if exportMsg}<p class="ok">{exportMsg}</p>{/if}
           {#if promptText}
             <textarea class="prompt" readonly rows="6">{promptText}</textarea>
@@ -388,6 +397,8 @@
   .side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 12px; }
   .panel { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--card); }
   .hint { margin: 6px 0 0; font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+  .confirm-none { display: flex; align-items: flex-start; gap: 6px; margin-top: 10px; font-size: 11px; line-height: 1.4; color: var(--text-muted); }
+  .confirm-none input { margin-top: 1px; }
   .ok { margin: 8px 0 0; font-size: 12px; color: #2a7; line-height: 1.5; }
 
   .chartlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }

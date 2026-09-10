@@ -1,14 +1,9 @@
 # Yarnification
 
-A knitting pattern tracker you can use offline. Follow a pattern row by row, with counters,
-charts, and per-row notes — no internet needed once a pattern is loaded.
+An offline-first Svelte knitting pattern tracker. Patterns are imported as structured
+`pattern.json` data and stored locally in the browser.
 
-## Two things in this repo
-
-- **`index.html`** — the original single-file tracker (Tailwind CDN, embedded pattern). Still works: just open it in a browser.
-- **`app/`** — the v2 rebuild: a Svelte + Vite app that renders patterns from data. See [`app/PLAN.md`](app/PLAN.md) for the roadmap.
-
-## Running the v2 app
+## Run the app
 
 ```bash
 cd app
@@ -16,7 +11,22 @@ npm install
 npm run dev
 ```
 
-## Note on patterns
+## Convert a pattern with Codex
 
-The app is a renderer/tracker only — it doesn't include any copyrighted knitting patterns.
-Sample pattern content (chart images, pattern data) is kept out of this repo on purpose.
+The repository includes a repo-scoped Codex skill, so a clone contains the conversion workflow and
+validator:
+
+1. In the app, choose **Add a pattern** and select the PDF.
+2. Inspect every rendered page and crop every knitting chart. If there are none, confirm that check.
+3. Enter the chosen size, export `bundle.json`, and give it to Codex with `$yarnification-convert`.
+4. Import the validated `pattern.json` that Codex returns.
+
+The skill preserves all source sizes while expanding grids for the chosen size. It also enforces
+chart linkage, original-language source text, stitch-count changes, and repeat trackers.
+
+## Private pattern data
+
+Source PDFs, extracted pages, chart crops, bundles, generated pattern files, and private seed
+patterns are ignored. Keep temporary work in `.yarnification-work/` and output in
+`.yarnification-output/`. The tracked `app/src/demo-grid.json` is synthetic and exists only to
+exercise the UI.

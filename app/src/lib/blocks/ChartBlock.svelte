@@ -2,13 +2,14 @@
   import { resolveGraded } from '../size.js';
 
   // A chart block: the cropped diagram image with a row-band overlay you tap
-  // through, plus a repeat counter. Geometry ported from the ChartOverlay
+  // through, plus a repeat counter. Geometry from the original chart prototype
   // prototype; styled here as the old app's chart-card.
   // row / rep are controlled by the parent (so the keyboard can drive them).
   let {
     block, indices = [], chosen = [], lang = 'both',
     row = 1, rep = 1, onRow = () => {}, onRep = () => {},
     calibration = null, onCalibration = () => {},
+    legendImage = null,
     active = false, onSelect = () => {},
   } = $props();
 
@@ -17,6 +18,7 @@
   const rows = $derived(Math.max(1, Number(calibration?.rows ?? block.rows) || 1));
   const repeatTotal = $derived(Number(resolveGraded(block.repeat ?? '1', indices)) || 1);
   const showZh = $derived(lang !== 'en' && !!block.source);
+  const legendSrc = $derived(block.legendImage ?? legendImage ?? '');
 
   const topPct = $derived(Number(calibration?.topPct ?? block.calibration?.topPct ?? 0.02));
   const botPct = $derived(Number(calibration?.botPct ?? block.calibration?.botPct ?? 0.985));
@@ -32,6 +34,7 @@
   // bottom-up chart (topDown = false), at the top for a top-down one.
   const topLabel = $derived(topDown ? 'first row' : 'last row');
   const botLabel = $derived(topDown ? 'last row' : 'first row');
+  let overlay = $state(null); // null | 'legend' | 'chart'
 
   function dragHandle(which) {
     return (e) => {
@@ -52,16 +55,28 @@
   }
 </script>
 
+<svelte:window onkeydown={(e) => { if (overlay && e.key === 'Escape') overlay = null; }} />
+
 <div class="chart-card" class:focused={active}>
   <div class="head">
     <button class="title" onclick={onSelect}>
       {block.name}{#if block.nameSource && block.nameSource !== block.name}<span class="orig"> · {block.nameSource}</span>{/if}
       <span class="sub">rows 1–{rows}</span>
     </button>
-    <div class="repeat">
-      <button onclick={() => { onSelect(); onRep(-1); }} aria-label="previous repeat">−</button>
-      <span>Repeat {rep} / {repeatTotal}</span>
-      <button onclick={() => { onSelect(); onRep(1); }} aria-label="next repeat">+</button>
+    <div class="head-right">
+      <div class="repeat">
+        <button onclick={() => { onSelect(); onRep(-1); }} aria-label="previous repeat">−</button>
+        <span>Repeat {rep} / {repeatTotal}</span>
+        <button onclick={() => { onSelect(); onRep(1); }} aria-label="next repeat">+</button>
+      </div>
+      <div class="tools">
+        {#if legendSrc}
+          <button class="icon-btn" title="Stitch symbols" aria-label="Show stitch symbols"
+            onclick={() => { onSelect(); overlay = 'legend'; }}>?</button>
+        {/if}
+        <button class="icon-btn" title="Expand" aria-label="Expand chart"
+          onclick={() => { onSelect(); overlay = 'chart'; }}>⤢</button>
+      </div>
     </div>
   </div>
 
@@ -93,6 +108,33 @@
   {#if showZh}<p class="source">{block.source}</p>{/if}
 </div>
 
+{#if overlay}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div class="backdrop" role="presentation" onclick={() => (overlay = null)}>
+    <div class="sheet" role="dialog" aria-modal="true"
+      aria-label={overlay === 'legend' ? 'Stitch symbols' : block.name}
+      tabindex="-1" onclick={(e) => e.stopPropagation()}>
+      <div class="sheet-head">
+        <span class="sheet-title">{overlay === 'legend' ? 'Stitch symbols' : block.name}</span>
+        {#if overlay === 'chart'}
+          <span class="sheet-meta">Chart row {row} / {rows}</span>
+        {/if}
+        <button class="x" onclick={() => (overlay = null)} aria-label="Close">×</button>
+      </div>
+      <div class="sheet-body">
+        {#if overlay === 'legend'}
+          <img class="legend-image" src={legendSrc} alt="Stitch symbol legend" />
+        {:else}
+          <div class="stage large">
+            <img {src} alt={block.name} />
+            <div class="band" style="top:{bandTop * 100}%; height:{rowH * 100}%"></div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .chart-card {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -101,6 +143,7 @@
   .chart-card.focused { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
   .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .head-right { display: flex; align-items: center; gap: 8px; }
   .title { padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; font: inherit; font-size: 14px; font-weight: 600; }
   .title .orig { color: var(--text-muted); font-weight: 400; }
   .title .sub { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-faint); }
@@ -111,6 +154,12 @@
     background: var(--card); cursor: pointer; font-size: 14px; line-height: 1;
   }
   .repeat button:hover { background: var(--panel); }
+  .tools { display: flex; align-items: center; gap: 4px; }
+  .icon-btn {
+    flex: none; cursor: pointer; border: 1px solid var(--border); background: var(--card);
+    color: var(--text-muted); border-radius: 6px; font-size: 12px; padding: 1px 6px;
+  }
+  .icon-btn:hover { background: var(--panel); }
 
   .stage { position: relative; line-height: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; max-width: 460px; }
   .stage img { width: 100%; display: block; user-select: none; -webkit-user-drag: none; }
@@ -138,4 +187,27 @@
   .calibration-controls label { display: inline-flex; align-items: center; gap: 4px; }
   .calibration-controls input[type="number"] { width: 54px; padding: 3px 4px; border: 1px solid var(--border); border-radius: 5px; }
   .source { margin: 8px 0 0; font-size: 12px; color: var(--text-faint); line-height: 1.4; }
+
+  .backdrop {
+    position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: rgba(0,0,0,0.4);
+  }
+  .sheet {
+    width: 100%; max-width: 960px; max-height: 85vh; overflow: auto; padding: 16px 18px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .sheet-head { display: flex; align-items: center; gap: 10px; }
+  .sheet-title { font-size: 14px; font-weight: 600; }
+  .sheet-meta { color: var(--text-faint); font-size: 11px; }
+  .x { flex: none; margin-left: auto; cursor: pointer; border: none; background: none; font-size: 22px; line-height: 1; color: var(--text-muted); }
+  .sheet-body { margin-top: 12px; }
+  .stage.large { max-width: none; }
+  .legend-image { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+
+  @media (max-width: 640px) {
+    .head { align-items: flex-start; }
+    .head-right { align-items: flex-end; flex-direction: column-reverse; }
+    .backdrop { padding: 10px; }
+  }
 </style>
