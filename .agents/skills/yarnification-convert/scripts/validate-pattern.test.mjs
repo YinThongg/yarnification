@@ -71,7 +71,7 @@ test('rejects a missing chart block and mismatched draft', async () => {
   assert.match(result.stderr, /exactly one chart block/);
 });
 
-test('rejects a chosen-size-only pattern and flattened stitch row', async () => {
+test('rejects a chosen-size-only pattern while accepting a written stitch row as a counter', async () => {
   const pattern = basePattern();
   pattern.sizes.labels = ['XS'];
   pattern.sections[0].blocks[1] = {
@@ -80,7 +80,16 @@ test('rejects a chosen-size-only pattern and flattened stitch row', async () => 
   const result = await validate(pattern);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /grading for at least 4 sizes/);
-  assert.match(result.stderr, /use a grid block/);
+  assert.doesNotMatch(result.stderr, /grid block/);
+});
+
+test('accepts a complete written stitch row as a counter', async () => {
+  const pattern = basePattern();
+  pattern.sections[0].blocks[1] = {
+    type: 'counter', kind: 'row', side: 'RS', text: 'Row 1: K2, P2.', source: 'Row 1: K2, P2.',
+  };
+  const result = await validate(pattern);
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test('requires a total for a finite repeat tracker', async () => {

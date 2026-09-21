@@ -126,14 +126,6 @@ function validateValues(values, path) {
   }
 }
 
-function explicitStitchRow(block) {
-  if (block.type !== 'counter' || block.kind !== 'row') return false;
-  const text = String(block.text ?? '');
-  if (/\bchart\b|图表|图解/i.test(text)) return false;
-  const tokens = text.match(/\b(?:K\d+|P\d+|K1TBL|YO|K2TOG|SSK|P2TOG|SSP|SLK|SLP|M1R|M1L|KFB|DS)\b/gi) ?? [];
-  return tokens.length >= 2 || /\b(?:row|round)\s*\d+[^:]*:\s*[KP]\d+\b/i.test(text);
-}
-
 function countNumbers(value) {
   return (String(value).match(/\d+(?:\.\d+)?/g) ?? []).length;
 }
@@ -196,9 +188,6 @@ function validateBlock(block, path, labels) {
       error(`${path}.kind`, 'must be caston, setup, row, or repeat');
     }
     if (!nonEmptyString(block.text)) error(`${path}.text`, 'is required for a counter block');
-    if (explicitStitchRow(block)) {
-      error(path, 'looks like a complete stitch sequence; use a grid block instead of flattening it into a counter');
-    }
     if (block.repeat !== undefined) {
       if (block.kind !== 'repeat') error(`${path}.repeat`, 'is only valid on a repeat counter');
       if (!positiveIntegerList(block.repeat)) error(`${path}.repeat`, 'must contain positive integer repeat totals');

@@ -31,7 +31,7 @@ The Svelte app imports one JSON object with metadata, every available size, the 
 }
 ```
 
-`sizes.labels` determines graded-value order. `chosen` contains one label, or two labels when the user is knitting between sizes. Preserve all sizes even though a grid's `knit` string represents the first chosen size.
+`sizes.labels` determines graded-value order. `chosen` contains one label, or two labels when the user is knitting between sizes. Preserve all sizes. If a source-supplied or user-requested grid is present, its `knit` string represents the first chosen size.
 
 ## Sections
 
@@ -59,7 +59,7 @@ Optional shared fields:
 
 ## Counter blocks
 
-Use for cast-ons, setup, plain narrative rows, and repeat-until instructions.
+Use for all written instructions, including cast-ons, setup, complete row/round sequences, narrative steps, and repeat-until instructions. Do not synthesize a grid from prose unless the user explicitly requests it.
 
 ```jsonc
 {
@@ -78,7 +78,7 @@ For `kind: "repeat"`, add `repeat` when the source gives a finite total. It may 
 
 ## Grid blocks
 
-Use when a row is explicit enough to render stitch by stitch.
+Use only when the source or bundle directly supplies machine-readable stitch-grid data, or when the user explicitly requests a generated grid. A detailed written row remains a counter by default.
 
 ```jsonc
 {
